@@ -134,3 +134,61 @@
   background: var(--brick-tile) 0 0 / 48px 48px;
   border-top: 4px solid var(--ink);
 }
+
+/* ---------- YouTube thumbnail ---------- */
+.th {
+  width: 1280px;
+  height: 720px;
+}
+.th-ground { height: 112px; }
+.th .bn-agent { bottom: 108px; width: auto; }
+.th-title {
+  position: absolute;
+  left: 64px;
+  top: 96px;
+  z-index: 3;
+}
+.th-mark {
+  font-size: 212px;
+  filter: drop-shadow(10px 10px 0 var(--ink));
+}
+.th-line {
+  margin: 28px 0 0;
+  font-size: 78px;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: var(--paper);
+  text-shadow: 6px 6px 0 var(--ink);
+}
+.th-chip {
+  display: inline-block;
+  margin-top: 30px;
+  font-size: 30px;
+  padding: 12px 18px 10px;
+}
+.th-card {
+  position: absolute;
+  left: 860px;
+  top: 40px;
+  z-index: 2;
+  width: 340px;
+  transform: rotate(5deg) scale(0.92);
+  transform-origin: top center;
+}
+.th-stamp {
+  position: absolute;
+  left: 890px;
+  top: 250px;
+  z-index: 5;
+  padding: 10px 22px 8px;
+  font-size: 64px;
+  line-height: 1;
+  color: var(--paper);
+  background: #e4513b;
+  border: 6px solid var(--ink);
+  box-shadow: 8px 8px 0 var(--ink);
+  transform: rotate(-9deg);
+}
+.th-bid { font-size: 34px; padding: 8px 14px 6px; }
+.th-rival { filter: saturate(0.85); }
+.th-rival .bn-bubble { font-size: 26px; }
