@@ -1,0 +1,77 @@
+@import '@fontsource/geist-pixel/400.css';
+@import '@fontsource/geist-mono/400.css';
+@import '@fontsource/geist-mono/600.css';
+
+/* Shared tokens for stage and phone. Extend, never fork. */
+:root {
+  --font-pixel: 'Geist Pixel', 'Geist Mono', monospace;
+  --font-mono: 'Geist Mono', ui-monospace, monospace;
+
+  --ink: #14121f;
+  --night: #0b0b1a;
+  --paper: #fcfcfc;
+  --sky: #5c94fc;
+  --sky-deep: #3a6fe0;
+  --brick: #c84c0c;
+  --brick-light: #fc9838;
+  --brick-dark: #7a2a04;
+  --pipe: #1fa33a;
+  --pipe-light: #7fdb62;
+  --pipe-dark: #0c5d1c;
+  --gold: #f8c630;
+  --gold-light: #fff1a8;
+  --gold-dark: #c8841a;
+  --sol-purple: #9945ff;
+  --sol-green: #14f195;
+  --sol: linear-gradient(90deg, var(--sol-purple), var(--sol-green));
+  --pass: #9aa0b5;
+
+  --px: 4px; /* one art pixel at stage scale */
+  --shadow-px: 0 var(--px) 0 var(--ink);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--night);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+svg[shape-rendering='crispEdges'] {
+  image-rendering: pixelated;
+  display: block;
+}
+
+.px-eyes {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: px-blink 4.2s infinite;
+}
+
+@keyframes px-blink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  95% { transform: scaleY(0.1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
