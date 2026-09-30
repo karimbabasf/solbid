@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion, useAnimate } from 'motion/react';
 import type { AuctionState, Lot, Phase, Raise } from '@shared/types';
 import { api, useAuction } from '../lib/useAuction';
-import { Coin, usd } from '../kit/sprites';
+import { Coin, Grid, usd } from '../kit/sprites';
+import { sfx, unlockAudio } from '../kit/sound';
 import { LotCard } from '../kit/LotCard';
 import { InfoButton } from '../kit/Info';
 import { SoundButton } from '../kit/SoundButton';
@@ -47,6 +48,30 @@ function useHostKeys(state: AuctionState | null) {
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
   }, []);
+}
+
+const RESTART_ICON = ['...kkkkk....', '..kk...kkk.k', '.kk.....kkkk', '.k.....kkkkk', 'kk..........', 'kk..........', 'kk..........', '.k.......kk.', '.kk.....kk..', '..kk...kk...', '...kkkkk....'];
+
+/** New game, same room: fresh $10 wallets, lot count and leaderboard back to zero. Second tap within 3s confirms. */
+function RestartButton() {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 3000);
+    return () => clearTimeout(t);
+  }, [armed]);
+  const tap = () => {
+    unlockAudio();
+    sfx('tap');
+    if (!armed) return setArmed(true);
+    setArmed(false);
+    void api('/api/host/restart', {});
+  };
+  return (
+    <button type="button" className={`kit-block restart${armed ? ' is-armed' : ''}`} onClick={tap} aria-label={armed ? 'Tap again to restart' : 'Restart game'} title="Restart game">
+      {armed ? <span className="restart-sure">SURE?</span> : <Grid rows={RESTART_ICON} colors={{ k: '#14121f' }} size={24} />}
+    </button>
+  );
 }
 
 /** Re-renders every 100ms while `on`, so server-timed labels move between snapshots. */
@@ -416,6 +441,7 @@ export default function Stage() {
           <div className="corner">
             <InfoButton enterUrl={state?.enterUrl} />
             <SoundButton withMusic />
+            <RestartButton />
           </div>
           <JoinSign url={state?.joinUrl ?? ''} enterUrl={state?.enterUrl} />
           <Leaders agents={agents} />

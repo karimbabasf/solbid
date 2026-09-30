@@ -56,6 +56,7 @@ let lotCounter = 0;
 let paused = false;
 let recent: string[] = [];
 let botCount = 0;
+let generation = 0; // bumped by a restart; a lot from an older generation stops at its next await
 
 // The bidding war for the current lot.
 let plans = new Map<string, Plan>();
@@ -396,7 +397,7 @@ function applyOverrides(item: Item) {
 
 const live = (id: string) => agents.has(id) && !out.has(id);
 
-async function war() {
+async function war(gen: number) {
   ladder = [];
   going = false;
   nextAmt = OPEN;
@@ -407,6 +408,7 @@ async function war() {
   await pause(T.firstRaise);
   let raises = 0;
   for (let guard = 0; guard < 80; guard++) {
+    if (gen !== generation) return;
     const leader = ladder.at(-1)?.agentId;
     let raiser: string | undefined;
     let byHand = false;
@@ -444,6 +446,8 @@ async function war() {
 }
 
 async function runLot() {
+  const gen = generation;
+  const stale = () => gen !== generation;
   const { item, forAgentId } = nextItem();
   recent = [item.id, ...recent].slice(0, 5);
   lotCounter++;
@@ -463,15 +467,18 @@ async function runLot() {
   const decided = withTimeout(decide(item, minds(), OPEN), T.decideMax, null);
   setPhase('intro', T.intro);
   await sleep(T.intro);
+  if (stale()) return;
 
   setPhase('thinking', T.thinkingMin);
   const d = await decided;
   const minLeft = T.thinkingMin - (Date.now() - started - T.intro);
   if (minLeft > 0) await sleep(minLeft);
+  if (stale()) return;
   for (const p of d?.plans ?? []) plans.set(p.agentId, p);
   applyOverrides(item);
 
-  await war();
+  await war(gen);
+  if (stale()) return;
 
   const top = findLast(ladder, (r) => agents.has(r.agentId));
   const agent = top ? agents.get(top.agentId) : undefined;
@@ -492,6 +499,7 @@ async function runLot() {
   const minShow = sleep(T.payingMin);
   const res = await withTimeout(rail.payX402({ pubkey: agent.wallet, secret: agent.secret }, `http://127.0.0.1:${port}/x402/lot/${current.id}`), 35000, { status: 'failed' as const, error: 'timeout' });
   await minShow;
+  if (stale()) return; // a restart gave this agent a fresh wallet; the old wallet's payment is history
   const explorer = res.sig ? rail.explorer(res.sig) : undefined;
   patchPayment(pid, { status: res.status, sig: res.sig, explorer });
 
@@ -503,18 +511,21 @@ async function runLot() {
     return;
   }
 
+  if (stale()) return;
   agent.balance = round2(Math.max(0, agent.balance - amount));
   agent.spent = round2(agent.spent + amount);
   agent.wins++;
   lotsSold++;
-  const delivery: Delivery = { lotId: current.id, agentId: agent.id, icon: item.icon, name: item.name, price: amount, content: await content, sig: res.sig, explorer, at: Date.now() };
+  const delivered = await content;
+  if (stale()) return;
+  const delivery: Delivery = { lotId: current.id, agentId: agent.id, icon: item.icon, name: item.name, price: amount, content: delivered, sig: res.sig, explorer, at: Date.now() };
   agent.deliveries = [delivery, ...agent.deliveries].slice(0, 30);
   setPhase('sold', T.sold);
   // House bots keep the room lively: when one runs low it gets another ten, on chain like everyone else.
   if (agent.house && agent.balance < 1.5) void fund(agent, true);
   if (res.status === 'confirmed') {
     void rail.getBalance(agent.wallet).then((b) => {
-      if (b !== null && Number.isFinite(b)) {
+      if (b !== null && Number.isFinite(b) && !stale()) {
         agent.balance = round2(b);
         broadcast();
       }
@@ -553,11 +564,38 @@ async function loop() {
 
 // ---------- host ----------
 
+// A new game with the same room: every agent gets a fresh wallet with $10 on chain, and the lot count and leaderboard start over.
+function restart() {
+  generation++;
+  lot = null;
+  plans = new Map();
+  ladder = [];
+  out = new Set();
+  manual = new Map();
+  forced = [];
+  going = false;
+  nextAmt = OPEN;
+  winner = null;
+  lotsSold = 0;
+  lotCounter = 0;
+  recent = [];
+  payments = [];
+  for (const a of agents.values()) {
+    const w = rail.newWallet();
+    Object.assign(a, { wallet: w.pubkey, secret: w.secret, balance: FUND_USD, funded: false, wins: 0, spent: 0, servedAt: 0 });
+    void fund(a);
+  }
+  setPhase('lobby', 0);
+  wake?.();
+  poke?.();
+}
+
 export function host(action: string) {
   if (action === 'start') paused = false;
   else if (action === 'pause') paused = true;
   else if (action === 'next') wake?.();
   else if (action === 'bots') addBots(3);
+  else if (action === 'restart') restart();
   else if (action === 'reset') {
     agents.clear();
     payments = [];

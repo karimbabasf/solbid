@@ -171,6 +171,17 @@
   display: flex;
   gap: 12px;
 }
+.restart.is-armed {
+  width: auto;
+  padding: 0 12px;
+  background: var(--brick);
+  box-shadow: inset 3px 3px 0 var(--brick-light), inset -3px -3px 0 var(--brick-dark), 0 4px 0 var(--ink);
+}
+.restart-sure {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--paper);
+}
 
 /* ---------- join sign ---------- */
 
