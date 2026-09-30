@@ -106,10 +106,9 @@ app.post('/api/host/url', async (c) => {
 });
 
 if (PROD && existsSync('dist/index.html')) {
-  const html = readFileSync('dist/index.html', 'utf8');
   app.use('/assets/*', serveStatic({ root: './dist' }));
   app.use('/*', serveStatic({ root: './dist' }));
-  app.get('*', (c) => c.html(html));
+  app.get('*', (c) => c.html(readFileSync('dist/index.html', 'utf8'))); // read per request so a rebuild needs no restart
 }
 
 app.onError((err, c) => {
