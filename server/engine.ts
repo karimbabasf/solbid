@@ -290,6 +290,11 @@ export function leave(id: string, key: unknown): { ok: boolean; error?: string }
   if (!keyOk(a, key)) return { ok: false, error: 'Not your agent.' };
   agents.delete(id);
   forced = forced.filter((x) => x !== id);
+  // Its raises go too, so the price, the leader and the next raise all fall back to whoever is still here.
+  if (phase === 'reveal') {
+    ladder = ladder.filter((r) => r.agentId !== id);
+    nextAmt = computeNext();
+  }
   broadcast();
   return { ok: true };
 }
@@ -385,8 +390,8 @@ function computeNext() {
 function applyOverrides(item: Item) {
   for (const [id, m] of manual) {
     const a = agents.get(id);
-    const p = plans.get(id);
-    if (!a || !p) continue;
+    if (!a) continue;
+    const p = plans.get(id) ?? { agentId: id, need: 0, reason: '', risk: 'low' as const, max: 0 }; // joined after the model call
     if (m === 'pass') plans.set(id, { ...p, max: 0, reason: 'You said skip.' });
     else {
       const max = Math.max(p.max, limitFor(item, 97, a.balance, Math.max(a.boldness, 1.2), OPEN));
@@ -408,6 +413,7 @@ async function war(gen: number) {
   await pause(T.firstRaise);
   let raises = 0;
   for (let guard = 0; guard < 80; guard++) {
+    while (paused && gen === generation) await sleep(250); // Space mid-war holds the war where it is
     if (gen !== generation) return;
     const leader = ladder.at(-1)?.agentId;
     let raiser: string | undefined;
@@ -469,7 +475,7 @@ async function runLot() {
   await sleep(T.intro);
   if (stale()) return;
 
-  setPhase('thinking', T.thinkingMin);
+  setPhase('thinking', Math.max(T.thinkingMin, T.decideMax - T.intro)); // the fuse covers the longest the model may take
   const d = await decided;
   const minLeft = T.thinkingMin - (Date.now() - started - T.intro);
   if (minLeft > 0) await sleep(minLeft);

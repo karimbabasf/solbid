@@ -56,7 +56,7 @@ function statusOf(agentId: string, agent: AgentPublic | null, state: AuctionStat
   if (bid.state === 'out') return { id: 'out', word: 'OUT', tone: 'dim', sub: bid.reason };
   if (phase === 'unsold') return { id: 'nosale', word: 'NO SALE', tone: 'dim' };
   if (bid.amount != null) {
-    const who = nameOf(state, top?.agentId ?? state.winner?.agentId);
+    const who = nameOf(state, state.winner?.agentId ?? top?.agentId);
     const at = state.winner?.amount ?? state.price;
     return { id: 'outbid', word: 'OUTBID', tone: 'bad', sub: who ? `${who} took it to ${usd(at)}` : `Top bid ${usd(at)}` };
   }
@@ -329,7 +329,7 @@ function Manual({ agentId, agentKey, agent, state, bid, lead, say }: { agentId: 
   const mine = said && lot && said.lotId === lot.id ? said.action : null;
   const done = bid?.state === 'pass' || bid?.state === 'out' || (!war && mine === 'pass');
   const canBid = live && !lead && !broke && !busy && !(!war && mine === 'bid');
-  const canPass = live && !done && !busy;
+  const canPass = live && !done && !busy && !(war && lead); // the house never lets the leader pass
 
   const toggle = () => {
     unlockAudio();

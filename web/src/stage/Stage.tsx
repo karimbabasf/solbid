@@ -87,8 +87,11 @@ function useTick(on: boolean) {
 /** Server-anchored clock: 0..1 of the current phase left. */
 function usePhaseLeft(state: AuctionState | null, on: boolean) {
   const skew = useRef(0);
+  const seen = useRef<AuctionState | null>(null);
   const start = useRef<{ phase: Phase | null; at: number }>({ phase: null, at: 0 });
-  if (state) {
+  if (state && state !== seen.current) {
+    // Skew only moves when a snapshot lands; recomputing it on every tick would freeze the clock at serverTime.
+    seen.current = state;
     skew.current = state.serverTime - Date.now();
     if (start.current.phase !== state.phase) start.current = { phase: state.phase, at: state.serverTime };
   }
@@ -102,12 +105,11 @@ function usePhaseLeft(state: AuctionState | null, on: boolean) {
 /** 0 while the war is live, 1 for "going once", 2 for "going twice": halves of the hold before the hammer. */
 function useGoing(state: AuctionState | null): 0 | 1 | 2 {
   const key = state?.going && state.phase === 'reveal' && state.lot ? `${state.lot.id}:${state.ladder?.length ?? 0}` : null;
-  const since = useRef<{ key: string; at: number } | null>(null);
-  if (key && since.current?.key !== key) since.current = { key, at: Date.now() };
+  const since = useRef<{ key: string; at: number; server: number } | null>(null);
+  if (key && state && since.current?.key !== key) since.current = { key, at: Date.now(), server: state.serverTime };
   useTick(!!key);
   if (!key || !state || !since.current) return 0;
-  const end = state.phaseEndsAt - (state.serverTime - Date.now());
-  const span = Math.max(1, end - since.current.at);
+  const span = Math.max(1, state.phaseEndsAt - since.current.server);
   return (Date.now() - since.current.at) / span < 0.5 ? 1 : 2;
 }
 
@@ -370,7 +372,7 @@ export default function Stage() {
     const present = new Set(state.agents.map((a) => a.id));
     if (state.phase === 'thinking') for (const a of state.agents) v.bubble.set(a.id, 'think');
     if (!WAR.includes(state.phase)) return v;
-    const top = state.winner && present.has(state.winner.agentId) ? state.winner.agentId : ladder.at(-1)?.agentId ?? null;
+    const top = state.winner ? (present.has(state.winner.agentId) ? state.winner.agentId : null) : ladder.at(-1)?.agentId ?? null;
     v.crownId = top;
     if (state.phase === 'paying') v.jumpId = top;
     for (const r of ladder) v.hop.set(r.agentId, r.at);
