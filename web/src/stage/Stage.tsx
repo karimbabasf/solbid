@@ -161,13 +161,12 @@ type PodiumProps = {
   price: number;
   raises: number;
   going: 0 | 1 | 2;
-  forName?: string;
   fuse: number;
   paused: boolean;
   empty: boolean;
 };
 
-function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, forName, fuse, paused, empty }: PodiumProps) {
+function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, fuse, paused, empty }: PodiumProps) {
   const [bump, animateBump] = useAnimate<HTMLDivElement>();
   const live = !!lot && phase !== 'lobby';
   const hammer = phase === 'paying' || phase === 'sold';
@@ -216,7 +215,7 @@ function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, forName
             >
               <div className="card-fit" style={{ scale: fit }}>
                 <div ref={bump}>
-                  <LotCard lot={lot} price={price > 0 ? price : undefined} going={going > 0} forName={forName} size="lg" />
+                  <LotCard lot={lot} price={price > 0 ? price : undefined} going={going > 0} size="lg" />
                 </div>
               </div>
             </motion.div>
@@ -319,35 +318,6 @@ function Toss({ from }: { from: { x: number; y: number } }) {
   );
 }
 
-/** A beam from the lot card down to the guest this lot was picked for. */
-function Spotlight({ at }: { at: Slot }) {
-  const top = CARD_BASE;
-  const foot = at.y + 6;
-  const pts = `${CX - 40},${top} ${CX + 40},${top} ${at.x + 96},${foot} ${at.x - 96},${foot}`;
-  return (
-    <motion.svg
-      className="spot"
-      width={W}
-      height={H}
-      viewBox={`0 0 ${W} ${H}`}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, transition: { duration: 0.2 } }}
-      transition={{ duration: 0.25 }}
-      aria-hidden
-    >
-      <defs>
-        <linearGradient id="spot-g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#fff1a8" stopOpacity="0.2" />
-          <stop offset="1" stopColor="#fff1a8" stopOpacity="0.62" />
-        </linearGradient>
-      </defs>
-      <polygon points={pts} fill="url(#spot-g)" />
-      <rect x={at.x - 96} y={foot - 8} width={192} height={10} fill="#fff1a8" opacity={0.7} />
-    </motion.svg>
-  );
-}
-
 const TAIL = ['kbbbbk', '.kbbk.', '..kk..'];
 
 function Reason({ at, text }: { at: Slot; text: string }) {
@@ -386,8 +356,6 @@ export default function Stage() {
   const winner = state?.winner ?? null;
   const winnerSlot = winner ? layout.slots.get(winner.agentId) ?? null : null;
   const winnerBid = winner ? state?.bids.find((b) => b.agentId === winner.agentId) : undefined;
-  const forAgent = lot?.forAgentId ? agents.find((a) => a.id === lot.forAgentId) : undefined;
-  const spotSlot = forAgent && (phase === 'intro' || phase === 'thinking' || phase === 'reveal') ? layout.slots.get(forAgent.id) ?? null : null;
 
   // Raises from agents who already left are dropped here, so nothing below renders a missing agent.
   const ladder = useMemo<Raise[]>(() => {
@@ -397,7 +365,7 @@ export default function Stage() {
   }, [state]);
 
   const view = useMemo<CrowdView>(() => {
-    const v: CrowdView = { bubble: new Map<string, BubbleKind>(), amount: new Map(), manual: new Set(), hop: new Map(), mark: new Map<string, Mark>(), flash: new Map<string, Flash>(), crownId: null, spotId: forAgent?.id ?? null, jumpId: null };
+    const v: CrowdView = { bubble: new Map<string, BubbleKind>(), amount: new Map(), manual: new Set(), hop: new Map(), mark: new Map<string, Mark>(), flash: new Map<string, Flash>(), crownId: null, spotId: null, jumpId: null };
     if (!state) return v;
     const present = new Set(state.agents.map((a) => a.id));
     if (state.phase === 'thinking') for (const a of state.agents) v.bubble.set(a.id, 'think');
@@ -427,7 +395,7 @@ export default function Stage() {
       }
     }
     return v;
-  }, [state, ladder, forAgent?.id]);
+  }, [state, ladder]);
 
   const tosses = phase === 'reveal' ? ladder.slice(-3) : [];
   const head = (s: Slot) => ({ x: s.x, y: s.y - (s.size * 13) / 12 - 20 });
@@ -445,7 +413,6 @@ export default function Stage() {
           </div>
           <JoinSign url={state?.joinUrl ?? ''} enterUrl={state?.enterUrl} />
           <Leaders agents={agents} />
-          <AnimatePresence>{spotSlot && <Spotlight key={`spot-${lot?.id}`} at={spotSlot} />}</AnimatePresence>
           <Podium
             lot={lot}
             phase={phase}
@@ -454,7 +421,6 @@ export default function Stage() {
             price={state?.price ?? 0}
             raises={ladder.length}
             going={going}
-            forName={forAgent?.name}
             fuse={fuse}
             paused={!!state?.paused}
             empty={agents.length === 0}

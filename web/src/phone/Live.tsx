@@ -144,7 +144,6 @@ export default function Live({ agentId, agentKey, state, me, online, rise, onLef
   };
 
   const enter = (i: number) => (rise ? { initial: { y: 24, opacity: 0 }, animate: { y: 0, opacity: 1 }, transition: { delay: 0.5 + i * 0.07, type: 'spring' as const, stiffness: 320, damping: 26 } } : {});
-  const forName = lot?.forAgentId ? (lot.forAgentId === agentId ? 'YOU' : nameOf(state, lot.forAgentId)) : undefined;
 
   return (
     <div className="ph-screen lv">
@@ -176,7 +175,7 @@ export default function Live({ agentId, agentKey, state, me, online, rise, onLef
         <motion.div {...enter(1)}>
           {state && lot ? (
             <section className="lv-lot" aria-label="Lot on sale">
-              <LotCard lot={lot} price={WAR.includes(phase) && state.price > 0 ? state.price : undefined} going={state.going} forName={forName} size="md" />
+              <LotCard lot={lot} price={WAR.includes(phase) && state.price > 0 ? state.price : undefined} going={state.going} size="md" />
               <LotFoot state={state} youId={agentId} />
             </section>
           ) : (
