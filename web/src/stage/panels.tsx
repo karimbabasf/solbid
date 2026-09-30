@@ -52,7 +52,7 @@ export function JoinSign({ url, enterUrl }: { url: string; enterUrl?: string }) 
     <div className="sign">
       <div className="panel sign-panel">
         <div className="qr">{url ? <QRCodeSVG value={url} size={296} bgColor="#fcfcfc" fgColor="#14121f" level="M" /> : <div className="qr-empty" />}</div>
-        <div className="sign-title">SCAN TO PLAY</div>
+        <div className="sign-title">SCAN TO BID</div>
         <div className="sign-url">{url.replace(/^https?:\/\//, '')}</div>
       </div>
       {enterUrl && (
