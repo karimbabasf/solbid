@@ -87,22 +87,47 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   });
 }
 
-async function waitConfirmed(sig: string, ms: number): Promise<void> {
-  const end = Date.now() + ms;
-  while (Date.now() < end) {
-    const { value } = await conn.getSignatureStatuses([sig]);
-    const s = value[0];
-    if (s?.err) throw new Error(`tx ${sig} failed: ${JSON.stringify(s.err)}`);
-    if (s && (s.confirmationStatus === 'confirmed' || s.confirmationStatus === 'finalized')) return;
-    await sleep(400);
-  }
-  throw new Error(`tx ${sig} not confirmed after ${ms}ms`);
+// The venue shares one IP, so public devnet rate-limits polling hard. Listen on the websocket first
+// and poll only as a slow backstop.
+function waitConfirmed(sig: string, ms: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    let subId: number | undefined;
+    const finish = (err?: Error) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      clearInterval(poll);
+      if (subId !== undefined) conn.removeSignatureListener(subId).catch(() => {});
+      if (err) reject(err);
+      else resolve();
+    };
+    const timer = setTimeout(() => finish(new Error(`tx ${sig} not confirmed after ${ms}ms`)), ms);
+    try {
+      subId = conn.onSignature(sig, (res) => (subId = undefined, finish(res.err ? new Error(`tx ${sig} failed: ${JSON.stringify(res.err)}`) : undefined)), 'confirmed');
+    } catch {}
+    const poll = setInterval(async () => {
+      try {
+        const s = (await conn.getSignatureStatuses([sig])).value[0];
+        if (s?.err) finish(new Error(`tx ${sig} failed: ${JSON.stringify(s.err)}`));
+        else if (s && (s.confirmationStatus === 'confirmed' || s.confirmationStatus === 'finalized')) finish();
+      } catch {}
+    }, 2500);
+  });
+}
+
+let cachedHash: { blockhash: string; at: number } | null = null;
+async function recentBlockhash(): Promise<string> {
+  if (cachedHash && Date.now() - cachedHash.at < 20_000) return cachedHash.blockhash;
+  const { blockhash } = await conn.getLatestBlockhash('confirmed');
+  cachedHash = { blockhash, at: Date.now() };
+  return blockhash;
 }
 
 // Treasury pays the fee and signs; extra signers (agents) sign too. Returns the confirmed signature.
 async function sendIxs(ixs: TransactionInstruction[], extraSigners: Keypair[], ms = 20_000): Promise<string> {
   if (!treasury) throw new Error('no treasury');
-  const { blockhash } = await conn.getLatestBlockhash('confirmed');
+  const blockhash = await recentBlockhash();
   const msg = new TransactionMessage({ payerKey: treasury.publicKey, recentBlockhash: blockhash, instructions: ixs }).compileToV0Message();
   const tx = new VersionedTransaction(msg);
   tx.sign([treasury, ...extraSigners]);
@@ -203,7 +228,16 @@ export function newWallet(): { pubkey: string; secret: string } {
 
 const live = () => info.mode !== 'sim' && treasury && mint;
 
-export async function fundAgent(pubkey: string, usd: number): Promise<{ status: PayStatus; sig?: string }> {
+// Funding runs one at a time: a burst of joins would otherwise trip the devnet rate limit.
+let fundQueue: Promise<unknown> = Promise.resolve();
+
+export function fundAgent(pubkey: string, usd: number): Promise<{ status: PayStatus; sig?: string }> {
+  const run = fundQueue.then(() => fundOne(pubkey, usd));
+  fundQueue = run.catch(() => {});
+  return run;
+}
+
+async function fundOne(pubkey: string, usd: number): Promise<{ status: PayStatus; sig?: string }> {
   try {
     await initPayments();
     if (!live()) {
@@ -211,14 +245,12 @@ export async function fundAgent(pubkey: string, usd: number): Promise<{ status: 
       return { status: 'simulated' };
     }
     const owner = new PublicKey(pubkey);
-    const src = getAssociatedTokenAddressSync(mint!, treasury!.publicKey);
     const dst = getAssociatedTokenAddressSync(mint!, owner);
-    const amount = toUnits(usd);
-    const ixs: TransactionInstruction[] = [createAssociatedTokenAccountIdempotentInstruction(treasury!.publicKey, dst, owner, mint!)];
-    const have = await conn.getTokenAccountBalance(src).then((r) => BigInt(r.value.amount)).catch(() => 0n);
-    if (have < amount) ixs.push(createMintToInstruction(mint!, src, treasury!.publicKey, amount + toUnits(SEED_SUPPLY)));
-    ixs.push(createTransferCheckedInstruction(src, mint!, dst, treasury!.publicKey, amount, DECIMALS));
-    const sig = await sendIxs(ixs, []);
+    // The treasury is the mint authority, so it mints each agent's dollar straight into the agent's account.
+    const sig = await sendIxs([
+      createAssociatedTokenAccountIdempotentInstruction(treasury!.publicKey, dst, owner, mint!),
+      createMintToInstruction(mint!, dst, treasury!.publicKey, toUnits(usd)),
+    ], []);
     return { status: 'confirmed', sig };
   } catch (e) {
     console.error('[pay] fundAgent failed:', errMsg(e));
@@ -384,7 +416,7 @@ async function buildPayment(kp: Keypair, req: PaymentRequirements): Promise<Vers
   const decimals = req.extra?.decimals ?? DECIMALS;
   const src = getAssociatedTokenAddressSync(m, kp.publicKey);
   const dst = getAssociatedTokenAddressSync(m, new PublicKey(req.payTo));
-  const { blockhash } = await conn.getLatestBlockhash('confirmed');
+  const blockhash = await recentBlockhash();
   const msg = new TransactionMessage({
     payerKey: feePayer,
     recentBlockhash: blockhash,
