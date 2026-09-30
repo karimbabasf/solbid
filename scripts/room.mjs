@@ -12,9 +12,18 @@ const run = (cmd, args, env = {}, tag = cmd) => {
   p.stderr.on('data', out);
   return p;
 };
+// pay's gateway ignores SIGTERM, so whatever is still up a moment later gets SIGKILL.
 const stopAll = () => {
   for (const k of kids) k.kill('SIGTERM');
-  process.exit(0);
+  setTimeout(() => {
+    for (const k of kids) if (k.exitCode === null) k.kill('SIGKILL');
+    for (const port of [8787, 1402]) {
+      try {
+        execSync(`lsof -ti tcp:${port} -sTCP:LISTEN | xargs kill -9`, { stdio: 'ignore' });
+      } catch {}
+    }
+    process.exit(0);
+  }, 1500);
 };
 process.on('SIGINT', stopAll);
 process.on('SIGTERM', stopAll);
@@ -38,7 +47,7 @@ function tunnel(port) {
 
 for (const port of [8787, 1402]) {
   try {
-    execSync(`lsof -ti tcp:${port} -sTCP:LISTEN | xargs kill`, { stdio: 'ignore' }); // listeners only: a bare tcp:port match also kills tunnels and dev proxies connected to it
+    execSync(`lsof -ti tcp:${port} -sTCP:LISTEN | xargs kill -9`, { stdio: 'ignore' }); // listeners only: a bare tcp:port match also kills tunnels and dev proxies connected to it
   } catch {}
 }
 
