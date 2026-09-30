@@ -6,7 +6,7 @@ import { Coin, usd } from '../kit/sprites';
 import { LotCard } from '../kit/LotCard';
 import { InfoButton } from '../kit/Info';
 import { SoundButton } from '../kit/SoundButton';
-import { Cloud, Hill, Px, QBlock } from './art';
+import { Cloud, Hill, Px } from './art';
 import { Crowd, GROUND, PIPES, PIPE_TOP, layoutCrowd, type BubbleKind, type CrowdView, type Flash, type Mark, type Slot } from './crowd';
 import { Hud, JoinSign, Ladder, Leaders, Ticker } from './panels';
 import { useStageSound } from './useStageSound';
@@ -14,8 +14,7 @@ import './stage.css';
 
 const W = 1920;
 const H = 1080;
-const BLOCK_TOP = 560;
-const CARD_BASE = BLOCK_TOP - 6; // the card's bottom edge rests on the block
+const CARD_BASE = 554; // the card grows upward from this line
 const CARD_MAX = { w: 460, h: CARD_BASE - 150 }; // never reaches up into the HUD
 const CX = W / 2;
 
@@ -144,16 +143,11 @@ type PodiumProps = {
 };
 
 function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, forName, fuse, paused, empty }: PodiumProps) {
-  const [block, animateBlock] = useAnimate<HTMLDivElement>();
   const [bump, animateBump] = useAnimate<HTMLDivElement>();
   const live = !!lot && phase !== 'lobby';
-  const used = live && phase !== 'unsold';
   const hammer = phase === 'paying' || phase === 'sold';
   const early = phase === 'intro' || phase === 'thinking';
 
-  useEffect(() => {
-    if (phase === 'intro' && block.current) animateBlock(block.current, { y: [0, -32, 0] }, { duration: 0.24, ease: 'easeOut' });
-  }, [phase, lot?.id, animateBlock, block]);
   // The kit owns the card's size; the stage scales it down to fit between the HUD and the block.
   const [fit, setFit] = useState(1);
   useLayoutEffect(() => {
@@ -203,10 +197,6 @@ function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, forName
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
-
-      <div ref={block} className={`block${live ? '' : ' is-idle'}`}>
-        <QBlock used={used} />
       </div>
 
       <AnimatePresence>
@@ -281,9 +271,9 @@ function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, forName
   );
 }
 
-/** Each raise tosses a coin from the raiser up into the ? block. */
+/** Each raise tosses a coin from the raiser up into the lot card's price. */
 function Toss({ from }: { from: { x: number; y: number } }) {
-  const to = { x: CX - 16, y: BLOCK_TOP + 96 };
+  const to = { x: CX - 16, y: CARD_BASE - 70 };
   const peak = Math.min(from.y, to.y) - 90;
   return (
     <motion.div
@@ -304,9 +294,9 @@ function Toss({ from }: { from: { x: number; y: number } }) {
   );
 }
 
-/** A beam from the ? block down to the guest this lot was picked for. */
+/** A beam from the lot card down to the guest this lot was picked for. */
 function Spotlight({ at }: { at: Slot }) {
-  const top = BLOCK_TOP + 128;
+  const top = CARD_BASE;
   const foot = at.y + 6;
   const pts = `${CX - 40},${top} ${CX + 40},${top} ${at.x + 96},${foot} ${at.x - 96},${foot}`;
   return (

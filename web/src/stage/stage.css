@@ -400,9 +400,9 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: 604px;
+  top: 588px;
   display: grid;
-  grid-template-columns: 1fr 176px 1fr;
+  grid-template-columns: 1fr 24px 1fr;
 }
 .block-chips span {
   padding: 8px 14px 7px;
