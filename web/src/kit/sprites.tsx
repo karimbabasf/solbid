@@ -28,7 +28,7 @@ const AGENTS: string[][] = [
   ['...kkkkkk...', '..kaaaaaak..', '.kkkkkkkkkk.', '.kmllmmmmmk.', 'kmmwwmmwwmmk', 'kmmwemmwemmk', 'kmmmmmmmmmmk', 'kmmmkmmkmmmk', 'kmmmmkkmmmmk', '.kdmmmmmmdk.', '..kdk..kdk..', '..kkk..kkk..'],
 ];
 
-function Grid({ rows, colors, size, className, style, title }: { rows: string[]; colors: Record<string, string>; size: number; className?: string; style?: CSSProperties; title?: string }) {
+export function Grid({ rows, colors, size, className, style, title }: { rows: string[]; colors: Record<string, string>; size: number; className?: string; style?: CSSProperties; title?: string }) {
   const w = rows[0].length;
   const h = rows.length;
   const body: JSX.Element[] = [];
@@ -61,7 +61,7 @@ export function Coin({ size = 16, className, style }: { size?: number; className
   return <Grid rows={COIN} colors={{ k: INK, y: '#F8C630', l: '#FFF1A8', d: '#C8841A' }} size={size} className={className} style={style} />;
 }
 
-const ICONS: Partial<Record<ItemIcon, { rows: string[]; colors: Record<string, string> }>> = {
+const ICONS: Record<ItemIcon, { rows: string[]; colors: Record<string, string> }> = {
   joke: {
     rows: ['...kkkkkk...', '..kyyyyyyk..', '.kyyyyyyyyk.', 'kyykyyyykyyk', 'kyykyyyykyyk', 'kyyyyyyyyyyk', 'kykkkkkkkkyk', 'kykwwwwwwkyk', '.kykwwwwkyk.', '..kykkkkyk..', '...kkkkkk...'],
     colors: { k: INK, y: '#F8C630', w: '#FCFCFC' },
@@ -94,10 +94,38 @@ const ICONS: Partial<Record<ItemIcon, { rows: string[]; colors: Record<string, s
     rows: ['...w..w.....', '..w..w......', '...w..w.....', '.kkkkkkkk...', '.kbbbbbbkkk.', '.kbbbbbbk.k.', '.kbbbbbbkkk.', '.kbbbbbbk...', '..kbbbbk....', '...kkkk.....'],
     colors: { k: INK, b: '#8A5A3B', w: '#FCFCFC' },
   },
+  roast: {
+    rows: ['....k.......', '...krk......', '...krrk..k..', '..krrrk.krk.', '..krrrrkrrk.', '.krrorrrrrrk', '.krrooorrrrk', 'krrooyooorrk', 'krooyyyyoork', 'krooyyyyyork', '.kroyyyyork.', '..kkkkkkkk..'],
+    colors: { k: INK, r: '#E4513B', o: '#F28C28', y: '#F8C630' },
+  },
+  meme: {
+    rows: ['kkkkkkkkkkkk', 'kffffffffffk', 'kfbbkkkkbbfk', 'kfbkyyyykbfk', 'kfkyeyyeykfk', 'kfkyyyyyykfk', 'kfkykyykykfk', 'kfbkykkykbfk', 'kfbbkkkkbbfk', 'kffffffffffk', 'kkkkkkkkkkkk'],
+    colors: { k: INK, f: '#C8841A', b: '#6FA8FF', y: '#F8C630', e: INK },
+  },
+  sunset: {
+    rows: ['kkkkkkkkkkkk', 'kppppppppppk', 'kpppyyyypppk', 'kooyyyyyyook', 'koyyyyyyyyok', 'kbbbbbbbbbbk', 'kbbyyyyyybbk', 'kllllllllllk', 'kbbbyyyybbbk', 'kllllllllllk', 'kbbbbyybbbbk', 'kkkkkkkkkkkk'],
+    colors: { k: INK, p: '#E85DA8', o: '#F28C28', y: '#F8C630', b: '#224C9C', l: '#3D7BE0' },
+  },
+  crystal: {
+    rows: ['...kkkkkk...', '..kppppllk..', '.kppppppplk.', 'kppwpppppplk', 'kpwwwppppppk', 'kppwpppppppk', 'kppppppppppk', '.kdppppppdk.', '..kkddddkk..', '..kaaaaaak..', '.kaaaaaaaak.', '.kkkkkkkkkk.'],
+    colors: { k: INK, p: '#8B5CF6', l: '#C4A8FF', d: '#5B34B8', w: '#FCFCFC', a: '#F8C630' },
+  },
+  rocket: {
+    rows: ['.....kk.....', '....krrk....', '...krrrrk...', '...kssssk...', '...ksbbsk...', '...ksbbsk...', '...kssssk...', '..kksssskk..', '.krksssskrk.', '.krkkkkkkrk.', '.kk.oyyo.kk.', '.....oo.....'],
+    colors: { k: INK, r: '#E4513B', s: '#FCFCFC', b: '#6FA8FF', o: '#F28C28', y: '#F8C630' },
+  },
+  heart: {
+    rows: ['.kkkk..kkkk.', 'krrlrkkrrrrk', 'krlrrrrrrrrk', 'krrrrrrrrrrk', 'krrrrrrrrrdk', '.krrrrrrrdk.', '..krrrrrdk..', '...krrrdk...', '....krdk....', '.....kk.....'],
+    colors: { k: INK, r: '#E85DA8', l: '#FFD1E8', d: '#A0336F' },
+  },
+  wish: {
+    rows: ['.....kk.....', '....kyyk....', '....kyyk....', 'kkkkyyyykkkk', 'kyllyyyyyyyk', '.kyyyyyyyyk.', '..kyyyyyyk..', '..kyyyyyyk..', '.kyyykkyyyk.', '.kyyk..kyyk.', 'kyyk....kyyk', 'kkk......kkk'],
+    colors: { k: INK, y: '#F8C630', l: '#FFF1A8' },
+  },
 };
 
 export function ItemSprite({ icon, size = 48, className, style }: { icon: ItemIcon; size?: number; className?: string; style?: CSSProperties }) {
-  const def = ICONS[icon] ?? ICONS.secret!;
+  const def = ICONS[icon] ?? ICONS.secret;
   return <Grid rows={def.rows} colors={def.colors} size={size} className={className} style={style} />;
 }
 

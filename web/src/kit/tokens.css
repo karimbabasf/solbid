@@ -26,6 +26,16 @@
   --sol: linear-gradient(90deg, var(--sol-purple), var(--sol-green));
   --pass: #9aa0b5;
 
+  /* Rarity: frame color, and a light tint that reads as text on ink. */
+  --rar-common: #c84c0c;
+  --rar-common-light: #fc9838;
+  --rar-rare: #3d7be0;
+  --rar-rare-light: #8cb8ff;
+  --rar-epic: #8b5cf6;
+  --rar-epic-light: #c4a8ff;
+  --rar-legendary: #f8c630;
+  --rar-legendary-light: #fff1a8;
+
   --px: 4px; /* one art pixel at stage scale */
   --shadow-px: 0 var(--px) 0 var(--ink);
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -74,4 +84,35 @@ svg[shape-rendering='crispEdges'] {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Pixel cursors: white fill, ink outline, so they read on the dark stage and on light cards. */
+:root {
+  --cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='32' viewBox='0 0 11 16' shape-rendering='crispEdges'%3E%3Cpath fill='%2314121f' d='M0 0h1v1h-1zM0 1h2v1h-2zM0 2h1v1h-1zM2 2h1v1h-1zM0 3h1v1h-1zM3 3h1v1h-1zM0 4h1v1h-1zM4 4h1v1h-1zM0 5h1v1h-1zM5 5h1v1h-1zM0 6h1v1h-1zM6 6h1v1h-1zM0 7h1v1h-1zM7 7h1v1h-1zM0 8h1v1h-1zM8 8h1v1h-1zM0 9h1v1h-1zM6 9h4v1h-4zM0 10h1v1h-1zM3 10h1v1h-1zM6 10h1v1h-1zM0 11h1v1h-1zM2 11h1v1h-1zM4 11h1v1h-1zM7 11h1v1h-1zM0 12h2v1h-2zM4 12h1v1h-1zM7 12h1v1h-1zM0 13h1v1h-1zM5 13h1v1h-1zM8 13h1v1h-1zM5 14h1v1h-1zM8 14h1v1h-1zM6 15h2v1h-2z'/%3E%3Cpath fill='%23fcfcfc' d='M1 2h1v1h-1zM1 3h2v1h-2zM1 4h3v1h-3zM1 5h4v1h-4zM1 6h5v1h-5zM1 7h6v1h-6zM1 8h7v1h-7zM1 9h5v1h-5zM1 10h2v1h-2zM4 10h2v1h-2zM1 11h1v1h-1zM5 11h2v1h-2zM5 12h2v1h-2zM6 13h2v1h-2zM6 14h2v1h-2z'/%3E%3C/svg%3E") 1 1, auto;
+  --cursor-hand: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='32' viewBox='0 0 14 16' shape-rendering='crispEdges'%3E%3Cpath fill='%2314121f' d='M4 0h2v1h-2zM3 1h1v1h-1zM6 1h1v1h-1zM3 2h1v1h-1zM6 2h1v1h-1zM3 3h1v1h-1zM6 3h1v1h-1zM3 4h1v1h-1zM6 4h3v1h-3zM3 5h1v1h-1zM6 5h1v1h-1zM9 5h3v1h-3zM1 6h3v1h-3zM6 6h1v1h-1zM9 6h1v1h-1zM12 6h1v1h-1zM0 7h1v1h-1zM3 7h1v1h-1zM13 7h1v1h-1zM0 8h1v1h-1zM3 8h1v1h-1zM13 8h1v1h-1zM0 9h1v1h-1zM13 9h1v1h-1zM1 10h1v1h-1zM13 10h1v1h-1zM1 11h1v1h-1zM12 11h1v1h-1zM2 12h1v1h-1zM12 12h1v1h-1zM2 13h1v1h-1zM11 13h1v1h-1zM3 14h1v1h-1zM11 14h1v1h-1zM3 15h9v1h-9z'/%3E%3Cpath fill='%23fcfcfc' d='M4 1h2v1h-2zM4 2h2v1h-2zM4 3h2v1h-2zM4 4h2v1h-2zM4 5h2v1h-2zM7 5h2v1h-2zM4 6h2v1h-2zM7 6h2v1h-2zM10 6h2v1h-2zM1 7h2v1h-2zM4 7h9v1h-9zM1 8h2v1h-2zM4 8h9v1h-9zM1 9h12v1h-12zM2 10h11v1h-11zM2 11h10v1h-10zM3 12h9v1h-9zM3 13h8v1h-8zM4 14h7v1h-7z'/%3E%3C/svg%3E") 9 1, pointer;
+}
+
+html,
+body {
+  cursor: var(--cursor);
+}
+
+a,
+button,
+[role='button'],
+label,
+select,
+summary {
+  cursor: var(--cursor-hand);
+}
+
+button:disabled,
+[aria-disabled='true'] {
+  cursor: var(--cursor);
+}
+
+input:not([type='button'], [type='submit'], [type='checkbox'], [type='radio'], [type='range']),
+textarea,
+[contenteditable='true'] {
+  cursor: text;
 }
