@@ -161,14 +161,13 @@ function LotCard({ state, youId }: { state: AuctionState | null; youId: string }
 
   return (
     <section className="ph-panel is-paper lv-lot" aria-live="polite">
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.div
+      {/* The old lot leaves instantly: an exit animation that stalls (a throttled tab) left two cards stacked. */}
+      <motion.div
           key={lot.id}
           className="lv-lot-body"
-          initial={{ x: 80, opacity: 0 }}
+          initial={{ x: 60, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: -80, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+          transition={{ type: 'spring', stiffness: 420, damping: 32 }}
         >
           <span className="lv-lot-art">
             <ItemSprite icon={lot.icon} size={72} className="ph-idle" />
@@ -183,7 +182,6 @@ function LotCard({ state, youId }: { state: AuctionState | null; youId: string }
             </p>
           </div>
         </motion.div>
-      </AnimatePresence>
       <div className="lv-lot-foot">
         <span className={`ph-phase t-${p.tone}`}>
           <motion.span key={phase} initial={{ y: 10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.18 }}>
