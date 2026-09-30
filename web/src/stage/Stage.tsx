@@ -150,7 +150,7 @@ function Podium({ lot, phase, winnerAt, price, fuse, paused, empty }: { lot: Lot
         {live && lot && (
           <motion.div key={lot.id} className="lot-label" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: 0.25, duration: 0.3 }}>
             <div className="lot-name">{lot.name.toUpperCase()}</div>
-            <div className="lot-reserve">RESERVE {usd(lot.reserve || 0)}</div>
+            <div className="lot-reserve" style={{ opacity: phase === 'sold' ? 0 : 1 }}>RESERVE {usd(lot.reserve || 0)}</div>
           </motion.div>
         )}
       </AnimatePresence>

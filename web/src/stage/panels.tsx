@@ -81,6 +81,8 @@ function Status({ s }: { s: Payment['status'] }) {
   return <span className="chip-sim">SIM</span>;
 }
 
+const KIND: Record<string, string> = { x402: 'x402', fund: 'FUND', seat: 'PAY.SH' };
+
 function Chip({ p, agent }: { p: Payment; agent?: AgentPublic }) {
   const body = (
     <>
@@ -89,8 +91,8 @@ function Chip({ p, agent }: { p: Payment; agent?: AgentPublic }) {
         {p.kind === 'fund' ? '+' : ''}
         {usd(safe(p.amount))}
       </span>
-      <span className={`chip-kind k-${p.kind}`}>{p.kind === 'x402' ? 'x402' : 'FUND'}</span>
-      <span className="chip-sig">{shortSig(p.sig) || '--------'}</span>
+      <span className={`chip-kind k-${p.kind}`}>{KIND[p.kind] ?? 'TX'}</span>
+      <span className="chip-sig">{shortSig(p.sig) || (p.kind === 'seat' ? 'MPP' : p.status === 'pending' ? 'SIGNING' : '--------')}</span>
       <Status s={p.status} />
     </>
   );

@@ -155,7 +155,8 @@ const Agent = memo(function Agent(p: AgentProps) {
         </div>
         {p.tags && (
           <motion.div className={`tag${p.agent.house ? ' is-house' : ''}`} initial={entry ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={{ delay: entry ? p.stagger + 1.25 : 0, duration: 0.2 }}>
-            {(p.agent.name || '???').slice(0, 6)}
+            {(p.agent.name || '???').slice(0, 8)}
+            {p.agent.via === 'pay.sh' && <span className="via">PAY.SH</span>}
           </motion.div>
         )}
         <div className={`bubble-anchor${p.size < 60 ? ' is-dense' : ''}`} style={{ bottom: h + (p.crowned ? 34 : 12) }}>

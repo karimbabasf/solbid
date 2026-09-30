@@ -322,6 +322,7 @@
   line-height: 1;
 }
 .lot-reserve {
+  transition: opacity 0.3s;
   margin-top: 10px;
   font-family: var(--font-mono);
   font-weight: 600;
@@ -520,6 +521,18 @@
 .tag.is-house {
   color: var(--pass);
 }
+.via {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 4px);
+  transform: translateX(-50%);
+  padding: 2px 4px 1px;
+  background: var(--sol);
+  color: var(--paper);
+  font-size: 10px;
+  text-shadow: 1px 1px 0 var(--ink);
+  border: 2px solid var(--ink);
+}
 
 .bubble-anchor {
   position: absolute;
@@ -611,10 +624,14 @@
   color: var(--ink);
   border: 4px solid var(--ink);
   box-shadow: 4px 4px 0 var(--ink);
-  font-size: 30px;
+  font-size: 28px;
   line-height: 1.2;
   text-align: center;
   text-wrap: balance;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 .reason-tail {
   position: absolute;
@@ -663,6 +680,10 @@
   background: var(--sol);
   color: var(--paper);
   text-shadow: 1px 1px 0 var(--ink);
+}
+.chip-kind.k-seat {
+  background: var(--ink);
+  color: var(--sol-green);
 }
 .chip-kind.k-fund {
   background: var(--ink);

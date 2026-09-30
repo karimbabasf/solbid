@@ -13,20 +13,38 @@ export function useAuction(agentId?: string | null) {
   useEffect(() => {
     if (isMock) return startMock(setState, setMe, agentId ?? undefined);
     const url = agentId ? `/api/stream?agent=${encodeURIComponent(agentId)}` : '/api/stream';
-    const es = new EventSource(url);
-    es.addEventListener('state', (e) => {
-      try {
-        setState(JSON.parse((e as MessageEvent).data));
-        setOnline(true);
-      } catch {}
-    });
-    es.addEventListener('me', (e) => {
-      try {
-        setMe(JSON.parse((e as MessageEvent).data));
-      } catch {}
-    });
-    es.onerror = () => setOnline(false); // EventSource reconnects on its own
-    return () => es.close();
+    let es: EventSource | null = null;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    let closed = false;
+    const open = () => {
+      es = new EventSource(url);
+      es.addEventListener('state', (e) => {
+        try {
+          setState(JSON.parse((e as MessageEvent).data));
+          setOnline(true);
+        } catch {}
+      });
+      es.addEventListener('me', (e) => {
+        try {
+          setMe(JSON.parse((e as MessageEvent).data));
+        } catch {}
+      });
+      es.onerror = () => {
+        setOnline(false);
+        // EventSource retries on its own unless the server answered with something that is not a stream
+        // (a restart behind a proxy); then it is CLOSED for good and we reopen it.
+        if (es?.readyState === EventSource.CLOSED && !closed) {
+          clearTimeout(retry);
+          retry = setTimeout(open, 1500);
+        }
+      };
+    };
+    open();
+    return () => {
+      closed = true;
+      clearTimeout(retry);
+      es?.close();
+    };
   }, [agentId]);
 
   return { state, me, online };
