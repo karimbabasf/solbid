@@ -4,7 +4,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { addClient, host, join, meState, setJoinUrl, snapshot, start, touchViewer, type PayRail } from './engine.ts';
+import { act, addClient, host, join, leave, meState, setJoinUrl, snapshot, start, touchViewer, type PayRail } from './engine.ts';
 import { simRail, simRoutes } from './simrail.ts';
 import { enterRoutes } from './enter.ts';
 import { llmLabel } from './llm.ts';
@@ -98,6 +98,16 @@ app.post('/api/join', async (c) => {
 });
 
 app.get('/api/agent/:id', (c) => c.json(meState(c.req.param('id'))));
+
+app.post('/api/agent/:id/act', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { key?: unknown; action?: unknown };
+  return c.json(act(c.req.param('id'), body.key, body.action));
+});
+
+app.post('/api/agent/:id/leave', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { key?: unknown };
+  return c.json(leave(c.req.param('id'), body.key));
+});
 
 app.post('/api/host/url', async (c) => {
   const { url } = await c.req.json().catch(() => ({ url: '' }));

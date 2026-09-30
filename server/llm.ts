@@ -7,7 +7,7 @@ function provider() {
     return {
       key: process.env.LLM_API_KEY,
       base: process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
-      model: process.env.LLM_MODEL || 'qwen/qwen3.7-flash',
+      model: process.env.LLM_MODEL || 'deepseek/deepseek-v4.1-flash',
       fallback: process.env.LLM_FALLBACK_MODEL,
     };
   }
@@ -35,7 +35,7 @@ export async function llm(messages: Msg[], ms = 4000, json = false): Promise<str
       body: JSON.stringify({
         model: p.model,
         ...(openrouter && p.fallback ? { models: [p.model, p.fallback] } : {}),
-        ...(openrouter ? { reasoning: { enabled: false } } : {}),
+        ...(openrouter ? { reasoning: { enabled: false }, provider: { sort: 'latency' } } : {}),
         messages,
         temperature: 0.8,
         max_tokens: 900,
