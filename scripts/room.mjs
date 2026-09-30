@@ -38,7 +38,7 @@ function tunnel(port) {
 
 for (const port of [8787, 1402]) {
   try {
-    execSync(`lsof -ti tcp:${port} | xargs kill`, { stdio: 'ignore' });
+    execSync(`lsof -ti tcp:${port} -sTCP:LISTEN | xargs kill`, { stdio: 'ignore' }); // listeners only: a bare tcp:port match also kills tunnels and dev proxies connected to it
   } catch {}
 }
 
