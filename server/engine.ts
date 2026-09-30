@@ -57,6 +57,13 @@ type Client = { agentId?: string; send: (event: string, data: string) => void };
 const clients = new Set<Client>();
 let flushTimer: NodeJS.Timeout | null = null;
 
+// Lots (and their model calls) only run while someone is watching: an open stream or a recent poll.
+let lastViewer = 0;
+export const touchViewer = () => {
+  lastViewer = Date.now();
+};
+const watched = () => clients.size > 0 || Date.now() - lastViewer < 45_000;
+
 export function addClient(c: Client) {
   clients.add(c);
   c.send('state', JSON.stringify(snapshot()));
@@ -309,7 +316,7 @@ const canPlay = () => [...agents.values()].some((a) => a.funded && a.balance >= 
 async function loop() {
   for (;;) {
     try {
-      if (paused || !canPlay()) {
+      if (paused || !canPlay() || !watched()) {
         if (phase !== 'lobby') {
           lot = null;
           bids = [];

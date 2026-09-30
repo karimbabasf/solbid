@@ -4,7 +4,7 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { addClient, host, join, meState, setJoinUrl, snapshot, start, type PayRail } from './engine.ts';
+import { addClient, host, join, meState, setJoinUrl, snapshot, start, touchViewer, type PayRail } from './engine.ts';
 import { simRail, simRoutes } from './simrail.ts';
 import { enterRoutes } from './enter.ts';
 
@@ -59,6 +59,7 @@ app.get('/api/health', (c) => c.json({ ok: true, pay: rail.payInfo(), agents: sn
 
 // Plain JSON snapshot: the client falls back to polling this when a proxy buffers the stream.
 app.get('/api/state', (c) => {
+  touchViewer();
   const agentId = c.req.query('agent');
   return c.json({ state: snapshot(), me: agentId ? meState(agentId) : null });
 });
