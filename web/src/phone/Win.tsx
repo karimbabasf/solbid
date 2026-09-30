@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
-import type { AuctionState, ItemIcon, MeState } from '@shared/types';
+import type { AuctionState, ItemIcon, MeState, Rarity } from '@shared/types';
 import { Coin, ItemSprite, shortSig, usd } from '../kit/sprites';
 import { Arrow, Cloud, QBlock } from './bits';
 
-/** Night turns to day: the block gets bumped, the item rises out of it, coins fly. */
-export function Celebrate({ icon, amount, onDone }: { icon: ItemIcon; amount: number; onDone: () => void }) {
+/** The block gets bumped, the item rises out of it in its rarity light, coins fly. */
+export function Celebrate({ icon, rarity, amount, onDone }: { icon: ItemIcon; rarity: Rarity; amount: number; onDone: () => void }) {
   const reduce = useReducedMotion();
   const [used, setUsed] = useState(false);
   const coins = useMemo(
@@ -19,8 +19,8 @@ export function Celebrate({ icon, amount, onDone }: { icon: ItemIcon; amount: nu
   );
 
   useEffect(() => {
-    const u = setTimeout(() => setUsed(true), 160);
-    const t = setTimeout(onDone, reduce ? 1400 : 2800);
+    const u = setTimeout(() => setUsed(true), 120);
+    const t = setTimeout(onDone, reduce ? 1100 : 2100);
     return () => {
       clearTimeout(u);
       clearTimeout(t);
@@ -29,36 +29,38 @@ export function Celebrate({ icon, amount, onDone }: { icon: ItemIcon; amount: nu
   }, []);
 
   return (
-    <motion.div className="ph-win" role="alert" aria-label={`You won, paid ${usd(amount)}`} onClick={onDone} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
+    <motion.div className={`ph-win rar-${rarity}`} role="alert" aria-label={`You won a ${rarity} lot, paid ${usd(amount)}`} onClick={onDone} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.16 }}>
       <Cloud size={96} className="ph-cloud c1" />
       <Cloud size={56} className="ph-cloud c2" />
       <h1 className="ph-win-title" aria-hidden>
         {'YOU WON'.split('').map((ch, i) => (
-          <motion.span key={i} initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.55 + i * 0.05, type: 'spring', stiffness: 520, damping: 17 }}>
+          <motion.span key={i} initial={{ y: -80, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.22 + i * 0.035, type: 'spring', stiffness: 560, damping: 18 }}>
             {ch === ' ' ? ' ' : ch}
           </motion.span>
         ))}
       </h1>
       <div className="ph-win-stage">
+        <motion.span className="ph-win-rays" aria-hidden initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.14, type: 'spring', stiffness: 260, damping: 20 }} />
         {coins.map((c, i) => (
           <motion.span
             key={i}
             className="ph-win-coin"
             initial={{ x: 0, y: 0, scale: 0 }}
             animate={{ x: [0, c.x, c.x * 1.2], y: [0, c.y, c.y + 640], scale: [0, 1, 1] }}
-            transition={{ duration: 1.6, delay: 0.2 + c.d, times: [0, 0.3, 1], ease: ['easeOut', 'easeIn'] }}
+            transition={{ duration: 1.3, delay: 0.12 + c.d, times: [0, 0.3, 1], ease: ['easeOut', 'easeIn'] }}
           >
             <Coin size={24} className="ph-spin" />
           </motion.span>
         ))}
-        <motion.span className="ph-win-item" initial={{ y: 8, opacity: 0 }} animate={{ y: -92, opacity: 1 }} transition={{ delay: 0.16, type: 'spring', stiffness: 260, damping: 13 }}>
+        <motion.span className="ph-win-item" initial={{ y: 8, opacity: 0 }} animate={{ y: -92, opacity: 1 }} transition={{ delay: 0.1, type: 'spring', stiffness: 320, damping: 15 }}>
           <ItemSprite icon={icon} size={80} />
         </motion.span>
         <motion.span className="ph-win-block" initial={{ y: 0 }} animate={{ y: [0, -20, 0] }} transition={{ duration: 0.26, times: [0, 0.4, 1], ease: 'easeOut' }}>
           <QBlock size={96} used={used} />
         </motion.span>
       </div>
-      <motion.p className="ph-win-amt" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }}>
+      <motion.p className="ph-win-amt" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
+        <span className="ph-rar">{rarity.toUpperCase()}</span>
         <Coin size={20} /> {usd(amount)}
       </motion.p>
     </motion.div>
@@ -112,7 +114,7 @@ export function DeliveryCard({ lotId, me, state, onClose }: { lotId: string; me:
         transition={{ type: 'spring', stiffness: 420, damping: 36 }}
       >
         <header className="ph-card-head">
-          <span className="ph-card-art">
+          <span className={`ph-card-art${lot ? ` rar-${lot.rarity}` : ''}`}>
             <ItemSprite icon={icon} size={48} />
           </span>
           <h2 className="ph-card-name">{name}</h2>

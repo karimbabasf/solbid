@@ -61,6 +61,12 @@ export const QBlock = ({ size = 48, used = false, className }: { size?: number; 
 const ARROW = ['..kkkk', '....kk', '...k.k', '..k..k', '.k....', 'k.....'];
 export const Arrow = ({ size = 10 }: { size?: number }) => <Px rows={ARROW} colors={{ k: 'currentColor' }} size={size} className="ph-arrow" />;
 
+const DOOR = ['kkkkk....', 'k...k....', 'k...k.k..', 'k...k..k.', 'k.k.kkkkk', 'k...k..k.', 'k...k.k..', 'k...k....', 'kkkkk....'];
+export const Door = ({ size = 18 }: { size?: number }) => <Px rows={DOOR} colors={{ k: 'currentColor' }} size={size} />;
+
+const CHEVRON = ['k.....k', 'kk...kk', '.kk.kk.', '..kkk..', '...k...'];
+export const Chevron = ({ size = 14, className }: { size?: number; className?: string }) => <Px rows={CHEVRON} colors={{ k: 'currentColor' }} size={size} className={className} />;
+
 /** A green pipe drawn at 4px per art pixel. */
 export function Pipe({ w = 112, h = 56 }: { w?: number; h?: number }) {
   const W = w / 4;

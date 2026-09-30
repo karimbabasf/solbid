@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import type { GoalId, ItemIcon, JoinRequest } from '@shared/types';
-import { api, isMock } from '../lib/useAuction';
+import type { GoalId, ItemIcon, JoinRequest, JoinResponse } from '@shared/types';
+import { api } from '../lib/useAuction';
 import { AgentSprite, ItemSprite } from '../kit/sprites';
+import { InfoButton } from '../kit/Info';
+import { SoundButton } from '../kit/SoundButton';
+import { sfx, unlockAudio } from '../kit/sound';
 import { Bricks, PipeSpot, Sky } from './bits';
 
 const GOALS: { id: GoalId; word: string; icon: ItemIcon }[] = [
@@ -12,6 +15,8 @@ const GOALS: { id: GoalId; word: string; icon: ItemIcon }[] = [
   { id: 'weather', word: 'WEATHER', icon: 'weather' },
 ];
 
+const NAMES = ['PIP', 'ZED', 'MOXY', 'BOLT', 'KIKI', 'RUNE', 'NOVA', 'TAKO', 'FIZZ', 'OKRA', 'JUNO', 'BEEP', 'DOT', 'LUMA', 'ACE', 'YOSHI'];
+const cleanName = (v: string) => v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
 const DROP_MS = 820;
 const rnd = (n: number, not?: number) => {
   let v = Math.floor(Math.random() * n);
@@ -21,8 +26,10 @@ const rnd = (n: number, not?: number) => {
 
 type Status = 'idle' | 'busy' | 'failed' | 'drop';
 
-export default function Join({ onSpawned }: { onSpawned: (id: string) => void }) {
+export default function Join({ onSpawned, enterUrl }: { onSpawned: (id: string, key: string) => void; enterUrl?: string }) {
   const reduce = useReducedMotion();
+  const [suggest] = useState(() => NAMES[rnd(NAMES.length)]);
+  const [name, setName] = useState('');
   const [look, setLook] = useState(() => ({ color: rnd(8), sprite: rnd(4) }));
   const [hop, setHop] = useState(0);
   const [goal, setGoal] = useState<GoalId | null>(null);
@@ -49,20 +56,26 @@ export default function Join({ onSpawned }: { onSpawned: (id: string) => void })
   };
 
   const spawn = async () => {
+    unlockAudio();
     if (status === 'busy' || dropping) return;
     if (!goal) return setNudge((n) => n + 1);
+    sfx('join');
     setStatus('busy');
-    const body: JoinRequest = { goal, text: goal === 'custom' ? text.trim() : undefined, color: look.color, sprite: look.sprite };
-    const res = isMock ? { agentId: 'me' } : await api<{ agentId: string }>('/api/join', body);
+    const body: JoinRequest = { goal, text: goal === 'custom' ? text.trim() : undefined, color: look.color, sprite: look.sprite, name: name || suggest };
+    const res = await api<JoinResponse>('/api/join', body);
     if (!res?.agentId) return setStatus('failed');
     setStatus('drop');
-    setTimeout(() => onSpawned(res.agentId), reduce ? 0 : DROP_MS);
+    setTimeout(() => onSpawned(res.agentId, res.key ?? ''), reduce ? 0 : DROP_MS);
   };
 
   return (
     <div className="ph-screen jn">
       <Sky>
         <p className="jn-brand">AGENT AUCTION HOUSE</p>
+        <span className="ph-tools">
+          <InfoButton enterUrl={enterUrl} />
+          <SoundButton />
+        </span>
       </Sky>
 
       <main className="ph-main jn-main">
@@ -95,6 +108,20 @@ export default function Join({ onSpawned }: { onSpawned: (id: string) => void })
         </div>
 
         <motion.div className="jn-form" animate={dropping ? { opacity: 0, y: 24 } : { opacity: 1, y: 0 }} transition={{ duration: 0.24, ease: 'easeIn' }}>
+          <label className="jn-name">
+            <span className="jn-name-tag">NAME</span>
+            <input
+              value={name}
+              onChange={(e) => setName(cleanName(e.target.value))}
+              placeholder={suggest}
+              autoCapitalize="characters"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="next"
+              aria-label="Agent name, up to 7 letters or digits"
+            />
+          </label>
           <h1 className="jn-ask">WHAT DO YOU WANT?</h1>
           <motion.div
             key={nudge}
@@ -139,7 +166,7 @@ export default function Join({ onSpawned }: { onSpawned: (id: string) => void })
         <AnimatePresence>
           {status === 'failed' && (
             <motion.p className="jn-err" role="alert" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              NO SIGNAL. TAP TO TRY AGAIN.
+              HOUSE IS FULL. TRY AGAIN IN A MINUTE.
             </motion.p>
           )}
         </AnimatePresence>
