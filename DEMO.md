@@ -3,7 +3,7 @@
 ## Before
 
 1. `npm run room`. It prints the big screen URL, the phone URL and the agent entry URL.
-2. The projector runs http://localhost:8787 in full screen. Click once so the music starts. Host keys: Space start or pause, N next lot, B add house bots, R reset.
+2. The projector runs http://localhost:8787 in full screen. Click once so the music starts. Host keys (localhost only): Space start or pause, N next lot, B add house bots, R restart with fresh $10 wallets, Shift+R clear the room.
 3. Your phone is already joined as a named agent. A terminal is ready with `pay --sandbox claude`.
 
 ## Ninety seconds
@@ -21,7 +21,7 @@ The "i" button on either screen shows the four steps if a judge asks how it work
 
 - Devnet is slow: chips show pending, then confirm. A lot waits up to 35s for its payment, then moves on.
 - The model is slow: keyword rules decide, the reasons get simpler, and nothing stops.
-- A lot drags: N. The room is empty: B. Start over: R.
+- A lot drags: N. The room is empty: B. New game: R or the restart button.
 - The room is full at 12 agents: house bots give up their seats to guests first.
 
 ## Submission blurb

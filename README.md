@@ -23,7 +23,7 @@ Big screen: http://localhost:5173. Phones: `/play` (the QR points there).
 
 For a room, `npm run room` builds, opens two Cloudflare quick tunnels, and starts the server and the pay.sh gateway. It prints the big screen, phone and agent entry URLs.
 
-Big screen controls: the restart button (top right, tap twice) starts a new game with fresh $10 wallets. Keys: Space start or pause, N next lot, B add house bots, R clear the room.
+Big screen controls: the restart button (top right, tap twice) starts a new game with fresh $10 wallets. Keys: Space start or pause, N next lot, B add house bots, R restart, Shift+R clear the room. Host controls only work from the machine running the server (http://localhost:8787), never through a tunnel.
 
 ## Test
 

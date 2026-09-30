@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { serve } from '@hono/node-server';
+import { getConnInfo } from '@hono/node-server/conninfo';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
@@ -107,6 +108,14 @@ app.post('/api/agent/:id/act', async (c) => {
 app.post('/api/agent/:id/leave', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { key?: unknown };
   return c.json(leave(c.req.param('id'), body.key));
+});
+
+// Host controls only answer the machine running the room. Tunnels also connect from loopback, so their forwarding headers count as outside.
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+app.use('/api/host/*', async (c, next) => {
+  const forwarded = c.req.header('cf-connecting-ip') || c.req.header('cf-ray') || c.req.header('x-forwarded-for');
+  if (forwarded || !LOOPBACK.has(getConnInfo(c).remote.address ?? '')) return c.json({ ok: false, error: 'host controls are local only' }, 403);
+  await next();
 });
 
 app.post('/api/host/url', async (c) => {

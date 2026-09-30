@@ -505,6 +505,14 @@ async function runLot() {
 
   if (res.status === 'failed') {
     console.warn(`[pay] lot ${current.id} failed: ${res.error ?? 'unknown'}`);
+    // Trust the chain over our count: if the wallet cannot cover the price, stop this agent from winning lots it cannot pay for.
+    // A wallet at zero that never spent means its first funding never landed (devnet rate limits), so fund it again.
+    void withTimeout(rail.getBalance(agent.wallet), 8000, null).then((b) => {
+      if (b === null || !Number.isFinite(b) || stale() || b >= amount) return;
+      agent.balance = round2(b);
+      if (b < OPEN && agent.spent === 0) void fund(agent, true);
+      broadcast();
+    });
     winner = null;
     setPhase('unsold', T.unsold);
     await sleep(T.unsold);

@@ -43,7 +43,7 @@ function useHostKeys(state: AuctionState | null) {
         api(run ? '/api/host/start' : '/api/host/pause', {});
       } else if (e.code === 'KeyN') api('/api/host/next', {});
       else if (e.code === 'KeyB') api('/api/host/bots', {});
-      else if (e.code === 'KeyR') api('/api/host/reset', {});
+      else if (e.code === 'KeyR') api(e.shiftKey ? '/api/host/reset' : '/api/host/restart', {});
     };
     window.addEventListener('keydown', on);
     return () => window.removeEventListener('keydown', on);
