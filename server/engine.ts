@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import type { AgentPublic, AuctionState, Bid, Delivery, DeliveryContent, GoalId, JoinRequest, JoinResponse, Lot, MeState, Payment, Phase, Raise } from '../shared/types.ts';
-import { decide, goalWords, limitFor, matchGoal, riskOf, type Mind, type Plan } from './brain.ts';
+import { START_BUDGET, decide, goalWords, limitFor, matchGoal, riskOf, type Mind, type Plan } from './brain.ts';
 import { ITEMS, fits, itemById, type Item } from './items.ts';
 
 // The payment rail, loaded at boot. A simulated rail stands in if the real one fails to load, so the show goes on.
@@ -37,7 +37,7 @@ const BOTS: { name: string; goal: GoalId; text?: string; boldness: number; color
 // A live demo stays readable: at most this many agents on stage. House bots give up their seats to guests.
 const MAX_AGENTS = Number(process.env.MAX_AGENTS) || 12;
 const MAX_PAYMENTS = 24;
-const FUND_USD = 10; // devnet test USDC from our own mint, so every agent starts with ten
+const FUND_USD = START_BUDGET; // devnet test USDC from our own mint, so every agent starts with ten
 const OPEN = 0.01; // every lot opens at one cent
 const T = { intro: 2200, thinkingMin: 1500, decideMax: 6000, firstRaise: 450, hold: 1600, payingMin: 1500, sold: 4500, unsold: 2200 };
 

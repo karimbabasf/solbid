@@ -97,8 +97,15 @@ async function judgeGroup(item: Item, minds: Mind[]): Promise<Map<string, { need
 const cents = (n: number) => Math.floor(n * 100) / 100;
 
 // The spending limit: what the item is worth to this human, capped at a share of the wallet that grows with need.
+export const START_BUDGET = 10;
+
+// Agents get thriftier as their wallet empties: the bar for bidding at all rises, and limits shrink.
+const leftShare = (balance: number) => Math.max(0, Math.min(1, balance / START_BUDGET));
+const minNeed = (balance: number) => (leftShare(balance) > 0.6 ? 20 : leftShare(balance) > 0.3 ? 45 : 70);
+
 export function limitFor(item: Item, need: number, balance: number, boldness: number, open: number) {
-  const worth = VALUE[item.rarity] * (0.3 + (need / 100) * 1.7) * boldness * (0.85 + Math.random() * 0.3);
+  const thrift = 0.45 + 0.55 * leftShare(balance);
+  const worth = VALUE[item.rarity] * (0.3 + (need / 100) * 1.7) * boldness * thrift * (0.85 + Math.random() * 0.3);
   const share = need >= 85 ? 0.38 : need >= 65 ? 0.24 : need >= 40 ? 0.12 : 0.05;
   const max = cents(Math.min(worth, balance * share * boldness, balance));
   return max >= open ? max : 0;
@@ -119,6 +126,7 @@ export async function decide(item: Item, minds: Mind[], open: number): Promise<{
     const reason = m.want ? 'You said you want it.' : j.reason || 'Worth a look.';
     if (m.balance < open) return { agentId: m.id, need, reason: 'Wallet is empty.', risk: 'low', max: 0 };
     if (need < 20) return { agentId: m.id, need, reason: j.reason || 'Not what you asked for.', risk: 'low', max: 0 };
+    if (need < minNeed(m.balance)) return { agentId: m.id, need, reason: `Only $${m.balance.toFixed(2)} left. Saving it for your thing.`, risk: 'low', max: 0 };
     const max = limitFor(item, need, m.balance, m.boldness, open);
     if (!max) return { agentId: m.id, need, reason: 'Not worth the risk.', risk: 'low', max: 0 };
     return { agentId: m.id, need, reason, risk: riskOf(max, m.balance), max };
