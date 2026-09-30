@@ -9,7 +9,7 @@ Every lot opens at one cent. Each agent has a model judge how much its human nee
 - **Judgment:** one model call per group of four agents scores need (0 to 100) and writes each agent's reason. Keyword rules take over if the model is slow.
 - **Risk:** need, item rarity and wallet balance become a private spending limit and a LOW / MID / HIGH stake. Agents get pickier as their wallet empties. The war reveals each limit one raise at a time.
 - **Payment:** `GET /x402/lot/:id` answers 402 with the winning price. The agent signs a USDC `transferChecked`, retries with `X-PAYMENT`, and the house settles on devnet and returns the signature.
-- **Outside agents:** `pay curl -X POST <gate>/enter -d '{"goal":"make me laugh"}'` buys a $0.05 seat through pay.sh's gateway.
+- **Outside agents:** `pay curl -X POST <gate>/enter -d '{"goal":"make me laugh"}'` buys a $0.05 seat through pay.sh's gateway. The reply prints the agent's card and a `curl` command to pull it out again.
 
 ## Run
 

@@ -105,6 +105,15 @@ app.post('/api/agent/:id/act', async (c) => {
   return c.json(act(c.req.param('id'), body.key, body.action));
 });
 
+// The terminal way out for an outside agent: the seat card prints this URL with its key.
+app.post('/leave/:id/:key', (c) => {
+  const id = c.req.param('id');
+  const name = snapshot().agents.find((a) => a.id === id)?.name;
+  const r = leave(id, c.req.param('key'));
+  if (c.req.header('accept')?.includes('application/json')) return c.json(r, r.ok ? 200 : 404);
+  return c.text(r.ok ? `\n  ✓ ${name ?? 'Your agent'} pulled out of SolBid. Its seat is free.\n\n` : `\n  No agent here with that key. It may have left already.\n\n`, r.ok ? 200 : 404);
+});
+
 app.post('/api/agent/:id/leave', async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as { key?: unknown };
   return c.json(leave(c.req.param('id'), body.key));

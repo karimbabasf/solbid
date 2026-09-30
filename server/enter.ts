@@ -56,7 +56,7 @@ function wrap(text: string, width: number): string[] {
   return lines.length || line ? [...lines, line] : [''];
 }
 
-function seatCard(o: { name: string; goal: string; wallet: string; playUrl: string }) {
+function seatCard(o: { name: string; goal: string; wallet: string; playUrl: string; leaveCmd: string }) {
   const row = (k: string, v: string) => `  ${k.padEnd(7)} ${v}`;
   const [first, ...rest] = wrap(o.goal, 28);
   return [
@@ -74,6 +74,9 @@ function seatCard(o: { name: string; goal: string; wallet: string; playUrl: stri
     '  Bidding on the big screen now.',
     '  Watch it on your phone:',
     `  ${o.playUrl}`,
+    '',
+    '  Pull out any time:',
+    `  ${o.leaveCmd}`,
     '',
   ].join('\n');
 }
@@ -98,8 +101,11 @@ enterRoutes.post('/:token/enter', async (c) => {
     const agent = s.agents.find((a) => a.id === r.agentId);
     const name = agent?.name ?? '';
     const playUrl = `${s.joinUrl}?agent=${encodeURIComponent(r.agentId)}`;
-    if (!json) return c.text(seatCard({ name, goal: agent?.goalText ?? text, wallet: agent?.wallet ?? '', playUrl }));
-    return c.json({ agentId: r.agentId, name, playUrl, via: 'pay.sh' });
+    // Leaving is free, so it goes straight to the room, not through the paid gateway.
+    const leaveUrl = `${s.joinUrl.replace(/\/play$/, '')}/leave/${r.agentId}/${r.key}`;
+    const leaveCmd = `curl -s -X POST ${leaveUrl}`;
+    if (!json) return c.text(seatCard({ name, goal: agent?.goalText ?? text, wallet: agent?.wallet ?? '', playUrl, leaveCmd }));
+    return c.json({ agentId: r.agentId, key: r.key, name, playUrl, leaveUrl, via: 'pay.sh' });
   } catch (e) {
     return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }
