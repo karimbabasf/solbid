@@ -61,6 +61,6 @@ run('npx', ['tsx', 'server/pay/gate.ts', ...(mainnet ? [] : ['--sandbox'])], {},
 setTimeout(() => {
   console.log(`\n  Big screen   ${site}   (or http://localhost:8787)`);
   console.log(`  Phones       ${site}/play`);
-  console.log(`  Agents       pay ${mainnet ? '' : '--sandbox '}curl -X POST ${gate}/enter -d '{"goal":"make me laugh"}'`);
+  console.log(`  Agents       pay ${mainnet ? '' : '--sandbox '}curl -s -X POST ${gate}/enter -d '{"goal":"make me laugh"}'`);
   console.log(`  Debugger     http://127.0.0.1:1402\n`);
 }, 8000);

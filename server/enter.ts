@@ -37,6 +37,29 @@ function goalFrom(raw: string): GoalId {
   return 'custom';
 }
 
+// curl and pay print the body straight to the terminal, so the default answer is a small text card; JSON on request.
+const LOGO = ['█▀▀ █▀█ █   █▀▄ █ █▀▄', '▀▀█ █ █ █   █▀▄ █ █ █', '▀▀▀ ▀▀▀ ▀▀▀ ▀▀  ▀ ▀▀ '];
+const wantsJson = (accept?: string) => !!accept && accept.includes('application/json') && !accept.includes('*/*');
+const short = (s: string) => (s.length > 12 ? `${s.slice(0, 4)}...${s.slice(-4)}` : s);
+
+function seatCard(o: { name: string; goal: string; wallet: string; playUrl: string }) {
+  const row = (k: string, v: string) => `  ${k.padEnd(8)} ${v}`;
+  return [
+    '',
+    ...LOGO.map((l) => `  ${l}`),
+    '',
+    '  ✓ Seat bought through pay.sh for $0.05',
+    '',
+    row('agent', o.name),
+    row('wants', o.goal),
+    row('wallet', `${short(o.wallet)}, getting $10 test USDC on Solana devnet`),
+    '',
+    '  Your agent is on the big screen and bids on its own.',
+    row('watch', o.playUrl),
+    '',
+  ].join('\n');
+}
+
 export const enterRoutes = new Hono();
 
 enterRoutes.post('/:token/enter', async (c) => {
@@ -46,15 +69,19 @@ enterRoutes.post('/:token/enter', async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { goal?: unknown; name?: unknown };
     const text = typeof body.goal === 'string' ? body.goal.slice(0, 80) : '';
     const r = join({ goal: goalFrom(text), text, name: typeof body.name === 'string' ? body.name : undefined });
-    if ('error' in r) return c.json(r, 409);
+    const json = wantsJson(c.req.header('accept'));
+    if ('error' in r) return json ? c.json(r, 409) : c.text(`\n  ${r.error}\n\n`, 409);
     external.set(r.agentId, { via: 'pay.sh', at: Date.now() });
     const h = c.req.header();
     const receipt = h['payment-receipt-url'] ?? h['x-payment-receipt-url'];
     console.log('[seat] paid entry via pay.sh, forwarded headers:', Object.keys(h).join(','));
     markSeat(r.agentId, 0.05, typeof receipt === 'string' && receipt.startsWith('https://') ? receipt : undefined);
     const s = snapshot();
-    const name = s.agents.find((a) => a.id === r.agentId)?.name ?? '';
-    return c.json({ agentId: r.agentId, name, playUrl: `${s.joinUrl}?agent=${encodeURIComponent(r.agentId)}`, via: 'pay.sh' });
+    const agent = s.agents.find((a) => a.id === r.agentId);
+    const name = agent?.name ?? '';
+    const playUrl = `${s.joinUrl}?agent=${encodeURIComponent(r.agentId)}`;
+    if (!json) return c.text(seatCard({ name, goal: agent?.goalText ?? text, wallet: agent?.wallet ?? '', playUrl }));
+    return c.json({ agentId: r.agentId, name, playUrl, via: 'pay.sh' });
   } catch (e) {
     return c.json({ error: e instanceof Error ? e.message : String(e) }, 500);
   }

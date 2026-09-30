@@ -1,5 +1,5 @@
 // The command an outside agent runs to buy a seat. `npm run room` starts pay's gateway in sandbox mode.
-export const enterCommand = (enterUrl: string) => `pay --sandbox curl -X POST ${enterUrl} -d '{"goal":"make me laugh"}'`;
+export const enterCommand = (enterUrl: string) => `pay --sandbox curl -s -X POST ${enterUrl} -d '{"goal":"make me laugh"}'`;
 
 export async function copyText(text: string): Promise<boolean> {
   try {
