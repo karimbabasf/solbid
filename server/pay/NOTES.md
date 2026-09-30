@@ -1,5 +1,12 @@
 # server/pay notes
 
+## Paid seats through pay.sh (round 2)
+
+- `server/enter.ts` serves `POST /paid/<token>/enter`. It accepts only loopback callers holding the token from `data/pay-gate.json`, and returns 404 for everything else. Mount it with `app.route('/paid', enterRoutes)`.
+- `server/pay/gate.ts` writes `data/paywall.yml` (routing proxy to that route, `POST enter` at $0.05) and runs pay's gateway: `npx tsx server/pay/gate.ts --sandbox` (hosted sandbox, debugger on the same port) or `npx tsx server/pay/gate.ts` (mainnet USDC to `data/house-mainnet.json`, 4WAFs7ScsnZ7Kf3w4epEoBSCfsdVssYEN4Et6oAAKKxS). Public URL: `http://<host>:1402/enter`.
+- The gateway speaks MPP `solana/charge` (WWW-Authenticate: Payment ... intent="charge"), not x402. `pay curl` and `pay claude` handle it.
+- Mainnet status: the 402 comes back, then settlement fails with "Attempt to debit an account but found no record of a prior credit". The fee payer has 0 SOL: `karimbaba` 6kQjP6pSmHbyPm4YSrWT4v2m92VKXCGwaMkkyZMcPs7R holds $5 USDC and 0 SOL, and no hosted fee payer steps in for a self-run gateway. Likely fix: about 0.01 SOL on 6kQj (it pays the fee plus the rent for the recipient's USDC account). Not verified. The first mainnet try also died on "Blockhash not found" after a slow client (about 2 min). Nothing was spent.
+
 ## State (2026-09-30)
 
 - Code is x402 exact-SVM (protocol v1), hand-rolled on `@solana/web3.js` + `@solana/spl-token`. No new npm deps.

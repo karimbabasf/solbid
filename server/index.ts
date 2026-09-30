@@ -6,6 +6,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { addClient, host, join, meState, setJoinUrl, snapshot, start, type PayRail } from './engine.ts';
 import { simRail, simRoutes } from './simrail.ts';
+import { enterRoutes } from './enter.ts';
 
 try {
   process.loadEnvFile('.env');
@@ -52,6 +53,7 @@ try {
 const app = new Hono();
 
 app.route('/x402', routes);
+app.route('/paid', enterRoutes); // pay.sh gateway (server/pay/gate.ts) forwards paid seats here
 
 app.get('/api/health', (c) => c.json({ ok: true, pay: rail.payInfo(), agents: snapshot().agents.length, phase: snapshot().phase, joinUrl: snapshot().joinUrl }));
 

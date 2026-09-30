@@ -22,6 +22,7 @@ export interface AgentPublic {
   wins: number;
   spent: number;
   joinedAt: number;
+  via?: 'pay.sh'; // bought its seat from outside through pay.sh
 }
 
 export interface Lot {
@@ -47,7 +48,7 @@ export type PaymentStatus = 'pending' | 'confirmed' | 'failed' | 'simulated';
 
 export interface Payment {
   id: string;
-  kind: 'fund' | 'x402';
+  kind: 'fund' | 'x402' | 'seat'; // seat = an outside agent paid to enter through pay.sh
   agentId: string;
   amount: number;
   status: PaymentStatus;

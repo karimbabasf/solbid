@@ -76,7 +76,7 @@ function broadcast() {
   }, 50);
 }
 
-const pub = (a: Agent): AgentPublic => ({ id: a.id, name: a.name, color: a.color, sprite: a.sprite, goal: a.goal, goalText: a.goalText, wallet: a.wallet, balance: a.balance, funded: a.funded, house: a.house, wins: a.wins, spent: a.spent, joinedAt: a.joinedAt });
+const pub = (a: Agent): AgentPublic => ({ id: a.id, name: a.name, color: a.color, sprite: a.sprite, goal: a.goal, goalText: a.goalText, wallet: a.wallet, balance: a.balance, funded: a.funded, house: a.house, wins: a.wins, spent: a.spent, joinedAt: a.joinedAt, via: a.via });
 
 export function snapshot(): AuctionState {
   const info = rail.payInfo();
@@ -196,6 +196,14 @@ export function join(body: Partial<JoinRequest>): { agentId: string } | { error:
   if (agents.size >= MAX_AGENTS) return { error: 'The house is full.' };
   const a = createAgent({ goal: (body.goal as GoalId) ?? 'custom', text: body.text, color: body.color, sprite: body.sprite, name: body.name });
   return { agentId: a.id };
+}
+
+// An outside agent paid for its seat through pay.sh: tag it and put the payment on the board.
+export function markSeat(agentId: string, amount: number, receipt?: string) {
+  const a = agents.get(agentId);
+  if (!a) return;
+  a.via = 'pay.sh';
+  pushPayment({ id: `seat-${agentId}`, kind: 'seat', agentId, amount, status: 'confirmed', explorer: receipt, at: Date.now() });
 }
 
 export function addBots(n = 3) {

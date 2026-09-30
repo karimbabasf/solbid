@@ -7,7 +7,9 @@
     "server": "tsx server/index.ts",
     "build": "vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "gate": "tsx server/pay/gate.ts --sandbox",
+    "gate:mainnet": "tsx server/pay/gate.ts"
   },
   "dependencies": {
     "@fontsource/geist-mono": "^5.3.0",
