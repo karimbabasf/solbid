@@ -23,12 +23,12 @@ interface Agent extends AgentPublic {
 const NAMES = ['PIP', 'ZED', 'MOXY', 'BOLT', 'KIKI', 'RUNE', 'NOVA', 'TAKO', 'FIZZ', 'OKRA', 'JUNO', 'BEEP', 'DOT', 'LUMA', 'ZIGGY', 'MOCHI', 'PRISM', 'RAVI', 'TOFU', 'VEGA', 'WREN', 'YUZU', 'KOI', 'NOODLE'];
 const GOALS: GoalId[] = ['laugh', 'art', 'alpha', 'weather', 'custom'];
 const BOTS: { name: string; goal: GoalId; text?: string; boldness: number; color: number; sprite: number }[] = [
-  { name: 'DEGEN', goal: 'alpha', boldness: 1.5, color: 6, sprite: 2 },
-  { name: 'POET', goal: 'art', boldness: 0.8, color: 4, sprite: 3 },
-  { name: 'CLOWN', goal: 'laugh', boldness: 1.1, color: 1, sprite: 0 },
-  { name: 'SCOUT', goal: 'weather', boldness: 0.9, color: 3, sprite: 1 },
-  { name: 'BARISTA', goal: 'custom', text: 'keep me caffeinated', boldness: 1.2, color: 2, sprite: 3 },
-  { name: 'ORACLE', goal: 'custom', text: 'tell me my future', boldness: 1, color: 5, sprite: 1 },
+  { name: 'DEGEN', goal: 'alpha', boldness: 1.05, color: 6, sprite: 2 },
+  { name: 'POET', goal: 'art', boldness: 0.65, color: 4, sprite: 3 },
+  { name: 'CLOWN', goal: 'laugh', boldness: 0.8, color: 1, sprite: 0 },
+  { name: 'SCOUT', goal: 'weather', boldness: 0.65, color: 3, sprite: 1 },
+  { name: 'BARISTA', goal: 'custom', text: 'keep me caffeinated', boldness: 0.85, color: 2, sprite: 3 },
+  { name: 'ORACLE', goal: 'custom', text: 'tell me my future', boldness: 0.75, color: 5, sprite: 1 },
 ];
 const MAX_AGENTS = 60;
 const MAX_PAYMENTS = 24;
@@ -189,7 +189,7 @@ function createAgent(o: { name?: string; goal: GoalId; text?: string; color?: nu
     wins: 0,
     spent: 0,
     joinedAt: Date.now(),
-    boldness: o.boldness ?? 0.85 + Math.random() * 0.5,
+    boldness: o.boldness ?? 1 + Math.random() * 0.45, // guests out-bid the house bots more often than not
     deliveries: [],
   };
   agents.set(id, a);
