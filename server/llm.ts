@@ -1,17 +1,41 @@
-// NEAR AI Cloud, OpenAI-compatible. Returns null on any failure or timeout so callers fall back.
+// OpenAI-compatible chat call. Returns null on any failure or timeout so callers fall back.
+// Key, base URL and model come as one set: LLM_* (OpenRouter today), else NEAR_AI_*. Never mixed.
 type Msg = { role: 'system' | 'user' | 'assistant'; content: string };
 
+function provider() {
+  if (process.env.LLM_API_KEY) {
+    return {
+      key: process.env.LLM_API_KEY,
+      base: process.env.LLM_BASE_URL || 'https://openrouter.ai/api/v1',
+      model: process.env.LLM_MODEL || 'qwen/qwen3.7-flash',
+      fallback: process.env.LLM_FALLBACK_MODEL,
+    };
+  }
+  return {
+    key: process.env.NEAR_AI_API_KEY,
+    base: process.env.NEAR_AI_BASE_URL || 'https://cloud-api.near.ai/v1',
+    model: process.env.NEAR_AI_MODEL || 'openai/gpt-oss-120b',
+    fallback: undefined,
+  };
+}
+
+export const llmLabel = () => {
+  const p = provider();
+  return p.key ? `${new URL(p.base).host} ${p.model}${p.fallback ? ` (fallback ${p.fallback})` : ''}` : 'none (rules only)';
+};
+
 export async function llm(messages: Msg[], ms = 4000, json = false): Promise<string | null> {
-  const key = process.env.NEAR_AI_API_KEY;
-  const base = process.env.NEAR_AI_BASE_URL || 'https://cloud-api.near.ai/v1';
-  const model = process.env.AUCTION_MODEL || process.env.NEAR_AI_MODEL || 'openai/gpt-oss-120b';
-  if (!key) return null;
+  const p = provider();
+  if (!p.key) return null;
+  const openrouter = p.base.includes('openrouter.ai');
   try {
-    const r = await fetch(`${base.replace(/\/$/, '')}/chat/completions`, {
+    const r = await fetch(`${p.base.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${key}` },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${p.key}`, ...(openrouter ? { 'X-Title': 'Agent Auction House' } : {}) },
       body: JSON.stringify({
-        model,
+        model: p.model,
+        ...(openrouter && p.fallback ? { models: [p.model, p.fallback] } : {}),
+        ...(openrouter ? { reasoning: { enabled: false } } : {}),
         messages,
         temperature: 0.8,
         max_tokens: 900,

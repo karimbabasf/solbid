@@ -7,6 +7,7 @@ import { streamSSE } from 'hono/streaming';
 import { addClient, host, join, meState, setJoinUrl, snapshot, start, touchViewer, type PayRail } from './engine.ts';
 import { simRail, simRoutes } from './simrail.ts';
 import { enterRoutes } from './enter.ts';
+import { llmLabel } from './llm.ts';
 
 try {
   process.loadEnvFile('.env');
@@ -119,7 +120,7 @@ app.onError((err, c) => {
 
 start({ rail, port: PORT, joinUrl: `${publicBase()}/play`, bots: BOTS });
 
-serve({ fetch: app.fetch, port: PORT }, () => console.log(`[server] http://localhost:${PORT}  join: ${publicBase()}/play`));
+serve({ fetch: app.fetch, port: PORT }, () => console.log(`[server] http://localhost:${PORT}  join: ${publicBase()}/play  llm: ${llmLabel()}`));
 
 process.on('unhandledRejection', (e) => console.error('[unhandled]', e));
 process.on('uncaughtException', (e) => console.error('[uncaught]', e));
