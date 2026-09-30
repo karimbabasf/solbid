@@ -31,7 +31,7 @@ export async function llm(messages: Msg[], ms = 4000, json = false): Promise<str
   try {
     const r = await fetch(`${p.base.replace(/\/$/, '')}/chat/completions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${p.key}`, ...(openrouter ? { 'X-Title': 'Agent Auction House' } : {}) },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${p.key}`, ...(openrouter ? { 'X-Title': 'SolBid' } : {}) },
       body: JSON.stringify({
         model: p.model,
         ...(openrouter && p.fallback ? { models: [p.model, p.fallback] } : {}),

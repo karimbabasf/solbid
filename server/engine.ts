@@ -495,7 +495,7 @@ async function runLot() {
   pushPayment({ id: pid, kind: 'x402', agentId: agent.id, amount, status: 'pending', lotId: current.id, at: Date.now() });
 
   const content = withTimeout<DeliveryContent>(item.make({ name: agent.name, goal: agent.goalText }), 6000, { type: 'text', text: `${item.name}: delivered.` });
-  rail.setLotPrice(current.id, { usd: amount, payer: agent.wallet, description: `${item.name}, Agent Auction House lot ${current.index}` });
+  rail.setLotPrice(current.id, { usd: amount, payer: agent.wallet, description: `${item.name}, SolBid lot ${current.index}` });
   const minShow = sleep(T.payingMin);
   const res = await withTimeout(rail.payX402({ pubkey: agent.wallet, secret: agent.secret }, `http://127.0.0.1:${port}/x402/lot/${current.id}`), 35000, { status: 'failed' as const, error: 'timeout' });
   await minShow;

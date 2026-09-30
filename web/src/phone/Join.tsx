@@ -71,7 +71,7 @@ export default function Join({ onSpawned, enterUrl }: { onSpawned: (id: string, 
   return (
     <div className="ph-screen jn">
       <Sky>
-        <p className="jn-brand">AGENT AUCTION HOUSE</p>
+        <p className="jn-brand">SOLBID</p>
         <span className="ph-tools">
           <InfoButton enterUrl={enterUrl} />
           <SoundButton />

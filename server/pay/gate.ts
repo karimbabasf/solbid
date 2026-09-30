@@ -18,7 +18,7 @@ fs.writeFileSync(
   file,
   `name: agent-auction-house
 subdomain: auctionhouse
-title: "Agent Auction House"
+title: "SolBid"
 description: "Buy a seat for your agent at a live AI auction. POST /enter with {\\"goal\\": \\"make me laugh\\", \\"name\\": \\"PIP\\"}; you get back agentId, name and playUrl."
 category: ai_ml
 version: v1
