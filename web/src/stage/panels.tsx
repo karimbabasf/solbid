@@ -36,7 +36,18 @@ export function Hud({ state, online }: { state: AuctionState | null; online: boo
   );
 }
 
-export function JoinSign({ url }: { url: string }) {
+/** Splits a URL for the one-line agent strip: host shortened in the middle, path kept whole. */
+function enterParts(url: string): [string, string] {
+  const bare = url.replace(/^https?:\/\//, '');
+  const cut = bare.indexOf('/');
+  const host = cut < 0 ? bare : bare.slice(0, cut);
+  const path = cut < 0 ? '' : bare.slice(cut);
+  const max = 19;
+  return [host.length > max ? `${host.slice(0, 9)}...${host.slice(-7)}` : host, path];
+}
+
+export function JoinSign({ url, enterUrl }: { url: string; enterUrl?: string }) {
+  const [host, path] = enterUrl ? enterParts(enterUrl) : ['', ''];
   return (
     <div className="sign">
       <div className="panel sign-panel">
@@ -44,6 +55,15 @@ export function JoinSign({ url }: { url: string }) {
         <div className="sign-title">SCAN TO PLAY</div>
         <div className="sign-url">{url.replace(/^https?:\/\//, '')}</div>
       </div>
+      {enterUrl && (
+        <div className="enter" title={enterUrl}>
+          <span className="enter-label">AGENTS</span>
+          <span className="enter-cmd">
+            pay curl -X POST <span className="enter-host">{host}</span>
+            {path}
+          </span>
+        </div>
+      )}
       <div className="sign-post" />
     </div>
   );

@@ -120,13 +120,16 @@ function TopBar({ agent, state }: { agent: AgentPublic | null; state: AuctionSta
         <span className="lv-me-face">{agent && <AgentSprite color={agent.color} sprite={agent.sprite} size={36} />}</span>
         <span className="lv-me-text">
           <b className="lv-name">{agent?.name ?? '....'}</b>
-          {!agent || !agent.funded ? (
-            <span className="lv-fund">FUNDING</span>
-          ) : (
-            <a className="lv-net" href={href} target="_blank" rel="noreferrer">
-              {net.toUpperCase()} <Arrow size={8} />
-            </a>
-          )}
+          <span className="lv-tags">
+            {!agent || !agent.funded ? (
+              <span className="lv-fund">FUNDING</span>
+            ) : (
+              <a className="lv-net" href={href} target="_blank" rel="noreferrer">
+                {net.toUpperCase()} <Arrow size={8} />
+              </a>
+            )}
+            {agent?.via === 'pay.sh' && <span className="lv-via">PAY.SH</span>}
+          </span>
         </span>
       </div>
       <div className="lv-bal" aria-label={`Balance ${usd(agent?.balance ?? 0)}`}>

@@ -292,7 +292,7 @@ export default function Stage() {
         <div className="stage" style={{ transform: `translate(-50%, -50%) scale(${scale})` }}>
           <Sky />
           <Hud state={state} online={online} />
-          <JoinSign url={state?.joinUrl ?? ''} />
+          <JoinSign url={state?.joinUrl ?? ''} enterUrl={state?.enterUrl} />
           <Leaders agents={agents} />
           <Podium
             lot={state?.lot ?? null}

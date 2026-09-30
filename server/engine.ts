@@ -160,7 +160,11 @@ async function fund(a: Agent, refill = false) {
   let r = await withTimeout(rail.fundAgent(a.wallet, 1), 30000, { status: 'failed' as const });
   if (r.status === 'failed') r = await withTimeout(rail.fundAgent(a.wallet, 1), 30000, { status: 'failed' as const });
   patchPayment(pid, { status: r.status, sig: r.sig, explorer: r.sig ? rail.explorer(r.sig) : undefined });
-  if (refill && r.status !== 'failed') a.balance = round2(a.balance + 1);
+  if (refill && r.status !== 'failed') {
+    // Read the chain rather than add locally, so a balance read racing this refill cannot count the dollar twice.
+    const b = r.status === 'confirmed' ? await withTimeout(rail.getBalance(a.wallet), 8000, null) : null;
+    a.balance = round2(b ?? a.balance + 1);
+  }
   a.funded = true; // a failed fund still lets the agent play; its payments fall back down the rail
   broadcast();
 }

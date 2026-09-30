@@ -203,6 +203,35 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.enter {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 7px 10px 6px;
+  background: var(--ink);
+  color: #c9c6dc;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.enter-label {
+  flex: none;
+  font-size: 12px;
+  color: var(--sol-green);
+}
+.enter-cmd {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: -0.02em;
+}
+.enter-host {
+  color: var(--paper);
+}
 .sign-post {
   position: absolute;
   left: 50%;
