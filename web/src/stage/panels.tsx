@@ -27,7 +27,7 @@ export function Hud({ state, online }: { state: AuctionState | null; online: boo
   return (
     <header className="hud">
       <HudCell label="AGENTS" value={pad(state?.agents.length ?? 0)} />
-      <HudCell label="LOT" value={lot ? `${lot.index}/${lot.total}` : '-/-'} />
+      <HudCell label="LOT" value={lot ? String(lot.index).padStart(2, '0') : '--'} />
       <HudCell label="SOLD" value={pad(state?.lotsSold ?? 0)} />
       <HudCell label="SOLANA" value={(state?.network ?? 'devnet').toUpperCase()}>
         <i className={`net-dot${online && state ? '' : ' is-off'}`} />
