@@ -92,6 +92,7 @@ export function snapshot(): AuctionState {
     network: 'devnet',
     payMode: info.mode,
     joinUrl,
+    enterUrl: process.env.ENTER_URL ? `${process.env.ENTER_URL.replace(/\/$/, '')}/enter` : undefined,
     lotsSold,
     paused,
     serverTime: Date.now(),

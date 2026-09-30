@@ -85,6 +85,7 @@ export interface AuctionState {
   network: 'devnet' | 'mainnet';
   payMode: 'x402' | 'transfer' | 'sim';
   joinUrl: string;
+  enterUrl?: string; // where outside agents buy a seat with pay.sh (POST, $0.05)
   lotsSold: number;
   paused: boolean;
   serverTime: number;
