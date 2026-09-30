@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { AgentSprite, Coin, Grid, ItemSprite } from './sprites';
 import { sfx } from './sound';
+import { copyText, enterCommand } from './copy';
 import './kit.css';
 
 const INK = '#14121f';
@@ -83,6 +84,7 @@ function useNarrow() {
 
 export function InfoButton({ enterUrl, className }: { enterUrl?: string; className?: string }) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const trigger = useRef<HTMLButtonElement>(null);
   const closeBtn = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -189,9 +191,19 @@ export function InfoButton({ enterUrl, className }: { enterUrl?: string; classNa
                       ))}
                     </ul>
                     {enterUrl && (
-                      <code className="kit-info__cmd">
-                        pay curl -X POST {enterUrl} -d '{'{"goal":"make me laugh"}'}'
-                      </code>
+                      <button
+                        type="button"
+                        className="kit-info__cmd"
+                        onClick={async () => {
+                          if (!(await copyText(enterCommand(enterUrl)))) return;
+                          sfx('tap');
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 1500);
+                        }}
+                      >
+                        <span className="kit-info__copy">{copied ? 'COPIED' : 'TAP TO COPY'}</span>
+                        <code>{enterCommand(enterUrl)}</code>
+                      </button>
                     )}
                   </footer>
                 </motion.div>

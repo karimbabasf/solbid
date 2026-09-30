@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
 import type { AgentPublic, AuctionState, Payment, Raise } from '@shared/types';
 import { AgentSprite, Coin, shortSig, usd } from '../kit/sprites';
+import { copyText, enterCommand } from '../kit/copy';
 import { Check, Cross, Crown, Spinner } from './art';
 
 const pad = (n: number) => String(Math.max(0, Math.floor(n || 0))).padStart(2, '0');
@@ -48,6 +49,12 @@ function enterParts(url: string): [string, string] {
 
 export function JoinSign({ url, enterUrl }: { url: string; enterUrl?: string }) {
   const [host, path] = enterUrl ? enterParts(enterUrl) : ['', ''];
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    if (!enterUrl || !(await copyText(enterCommand(enterUrl)))) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
   return (
     <div className="sign">
       <div className="panel sign-panel">
@@ -56,13 +63,13 @@ export function JoinSign({ url, enterUrl }: { url: string; enterUrl?: string }) 
         <div className="sign-url">{url.replace(/^https?:\/\//, '')}</div>
       </div>
       {enterUrl && (
-        <div className="enter" title={enterUrl}>
-          <span className="enter-label">AGENTS</span>
+        <button type="button" className="enter" title={enterCommand(enterUrl)} onClick={copy} aria-label="Copy the agent command">
+          <span className="enter-label">{copied ? 'COPIED' : 'AGENTS'}</span>
           <span className="enter-cmd">
-            pay curl -X POST <span className="enter-host">{host}</span>
+            pay --sandbox curl -X POST <span className="enter-host">{host}</span>
             {path}
           </span>
-        </div>
+        </button>
       )}
       <div className="sign-post" />
     </div>
