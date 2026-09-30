@@ -116,12 +116,9 @@
   top: 36px;
   z-index: 9;
   display: grid;
-  grid-template-columns: 1fr 1fr 600px 1fr 1fr; /* the middle column stays clear for the card */
-  padding: 0 190px 0 110px;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 0 180px;
   text-shadow: 4px 4px 0 var(--ink);
-}
-.hud-cell:nth-child(3) {
-  grid-column: 4;
 }
 .hud-cell {
   display: flex;
@@ -270,12 +267,12 @@
 .leaders-head,
 .leader {
   display: grid;
-  grid-template-columns: 44px 1fr 64px 92px;
+  grid-template-columns: 44px 1fr 48px 92px;
   align-items: center;
   column-gap: 10px;
 }
 .leaders-head {
-  grid-template-columns: 1fr 64px 92px;
+  grid-template-columns: 1fr 48px 92px;
   font-size: 18px;
   color: #4a4760;
   padding-bottom: 10px;
@@ -295,7 +292,7 @@
   padding: 6px 0;
 }
 .leader.is-first {
-  grid-template-columns: 60px 1fr 64px 92px;
+  grid-template-columns: 60px 1fr 48px 92px;
   margin: 4px -12px 6px;
   padding: 12px 12px 8px;
   background: var(--gold);
@@ -314,7 +311,7 @@
   transform: translateX(-50%);
 }
 .is-first .leader-name {
-  font-size: 30px;
+  font-size: 26px;
 }
 .is-first .leader-wins {
   font-size: 36px;
@@ -334,10 +331,12 @@
 }
 .leader-name {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   min-width: 0;
-  font-size: 24px;
+  font-size: 22px;
+  line-height: 1;
 }
 .leader-nm {
   min-width: 0;
@@ -640,15 +639,6 @@
   z-index: 6;
   pointer-events: none;
 }
-.ledge {
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 32px;
-  background: var(--brick-tile) 0 0 / 64px 64px;
-  border: 4px solid var(--ink);
-  box-shadow: 4px 4px 0 rgba(20, 18, 31, 0.35);
-}
 .agent {
   position: absolute;
   left: 0;
@@ -796,7 +786,7 @@
 }
 .flash-box {
   width: max-content;
-  max-width: 230px;
+  max-width: 200px;
   padding: 6px 9px;
   background: #dfe3ee;
   color: var(--ink);

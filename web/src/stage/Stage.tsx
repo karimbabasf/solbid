@@ -16,7 +16,7 @@ const W = 1920;
 const H = 1080;
 const BLOCK_TOP = 560;
 const CARD_BASE = BLOCK_TOP - 6; // the card's bottom edge rests on the block
-const CARD_MAX = { w: 460, h: CARD_BASE - 48 };
+const CARD_MAX = { w: 460, h: CARD_BASE - 150 }; // never reaches up into the HUD
 const CX = W / 2;
 
 function useFit() {
@@ -174,6 +174,9 @@ function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, forName
   if (phase === 'sold' && winnerAt) {
     cardAnim = { x: winnerAt.x - CX, y: winnerAt.y - CARD_BASE, scale: 0.12, opacity: [1, 1, 0] };
     cardTrans = { delay: 0.3, duration: 0.55, ease: [0.5, 0, 0.3, 1] };
+  } else if (phase === 'sold') {
+    cardAnim = { x: 0, y: -40, scale: 0.9, opacity: 0 }; // the winner left the room
+    cardTrans = { delay: 0.3, duration: 0.4, ease: 'easeIn' };
   } else if (phase === 'unsold') {
     cardAnim = { x: 0, y: 70, scale: 0.2, opacity: 0 };
     cardTrans = { duration: 0.32, ease: 'easeIn' };
@@ -187,7 +190,7 @@ function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, forName
             <motion.div
               key={lot.id}
               className="card-pop"
-              initial={{ y: 60, scale: 0.15, opacity: 0 }}
+              initial={false}
               animate={cardAnim}
               exit={{ opacity: 0, transition: { duration: 0.12 } }}
               transition={cardTrans}

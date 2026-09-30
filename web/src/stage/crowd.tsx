@@ -6,49 +6,27 @@ import { Crown, Px } from './art';
 
 // Stage geometry, in 1920x1080 stage pixels.
 export const GROUND = 880;
-export const LEDGE_Y = 700;
 export const PIPE_TOP = 700;
 export const PIPES = [110, 1810];
-const X0 = 260;
-const X1 = 1660;
-const LEDGES: [number, number][] = [[260, 750], [1170, 1660]];
+const X0 = 250;
+const X1 = 1670;
+const PITCH = 120;
+const CX_MID = (X0 + X1) / 2;
 
 export interface Slot { x: number; y: number; size: number }
-export interface CrowdLayout { slots: Map<string, Slot>; size: number; ledges: { x0: number; x1: number }[]; tags: boolean }
+export interface CrowdLayout { slots: Map<string, Slot>; tags: boolean }
 
 const snap = (n: number) => Math.max(24, Math.min(72, Math.floor(n / 12) * 12));
 
-/** One ground row up to 14 agents; past that, two floating ledges take the late joiners. */
+/** One ground row between the pipes. The room caps at 12, which fits at full size; more only shrinks the sprites. */
 export function layoutCrowd(agents: AgentPublic[]): CrowdLayout {
   const n = agents.length;
+  const pitch = Math.min(PITCH, (X1 - X0) / Math.max(n, 1));
+  const size = n <= 12 ? 72 : snap(pitch * 0.75);
+  const start = CX_MID - (pitch * (n - 1)) / 2;
   const slots = new Map<string, Slot>();
-  const row = (list: AgentPublic[], x0: number, x1: number, y: number, pitch: number, size: number) => {
-    const start = (x0 + x1) / 2 - (pitch * (list.length - 1)) / 2;
-    list.forEach((a, i) => slots.set(a.id, { x: start + i * pitch, y, size }));
-  };
-  if (n <= 14) {
-    const pitch = Math.min(112, (X1 - X0) / Math.max(n, 1));
-    row(agents, X0, X1, GROUND, pitch, 72);
-    return { slots, size: 72, ledges: [], tags: true };
-  }
-  const g = Math.ceil(n * 0.55);
-  const l = Math.ceil((n - g) / 2);
-  const ground = agents.slice(0, g);
-  const left = agents.slice(g, g + l);
-  const right = agents.slice(g + l);
-  const pitch = Math.min(112, (X1 - X0) / g, (LEDGES[0][1] - LEDGES[0][0]) / Math.max(l, 1));
-  const size = snap(pitch * 0.8);
-  row(ground, X0, X1, GROUND, pitch, size);
-  const ledges: CrowdLayout['ledges'] = [];
-  [left, right].forEach((list, i) => {
-    if (!list.length) return;
-    const [a, b] = LEDGES[i];
-    const half = (pitch * list.length) / 2 + 20;
-    const mid = i === 0 ? b - half : a + half; // hug the gap under the block
-    row(list, mid - half, mid + half, LEDGE_Y, pitch, size);
-    ledges.push({ x0: mid - half, x1: mid + half });
-  });
-  return { slots, size, ledges, tags: pitch >= 52 };
+  agents.forEach((a, i) => slots.set(a.id, { x: start + i * pitch, y: GROUND, size }));
+  return { slots, tags: pitch >= 52 };
 }
 
 export type BubbleKind = 'none' | 'think' | 'bid' | 'out';
@@ -156,7 +134,7 @@ const Agent = memo(function Agent(p: AgentProps) {
     if (!p.spawn) return null;
     const pipe = p.x < 960 ? PIPES[0] : PIPES[1];
     const dx = pipe - p.x;
-    const lift = PIPE_TOP - p.y; // 0 on a ledge, -180 on the ground
+    const lift = PIPE_TOP - p.y;
     const peak = Math.min(lift, 0) - 90;
     const base = { delay: p.stagger, duration: 1, times: [0, 0.3, 0.42, 0.72, 1] };
     return {
@@ -183,7 +161,7 @@ const Agent = memo(function Agent(p: AgentProps) {
       initial={false}
       animate={{ x: p.x, y: p.y }}
       transition={{ type: 'spring', stiffness: 170, damping: 22 }}
-      exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.25 } }}
+      exit={{ y: p.y + 40, opacity: 0, transition: { duration: 0.3, ease: 'easeIn' } }}
       style={{ zIndex: p.crowned ? 3 : p.flashText ? 2 : 1 }}
     >
       <motion.div className="agent-entry" initial={entry?.initial ?? false} animate={entry?.animate} transition={entry?.transition}>
@@ -238,9 +216,6 @@ export function Crowd({ agents, layout, view }: { agents: AgentPublic[]; layout:
   });
   return (
     <div className="crowd">
-      {layout.ledges.map((l, i) => (
-        <div key={i} className="ledge" style={{ transform: `translate(${l.x0}px, ${LEDGE_Y}px)`, width: l.x1 - l.x0 }} />
-      ))}
       <AnimatePresence>
         {agents.map((a, i) => {
           const s = layout.slots.get(a.id);
