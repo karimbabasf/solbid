@@ -50,6 +50,8 @@ function enterParts(url: string): [string, string] {
 export function JoinSign({ url, enterUrl }: { url: string; enterUrl?: string }) {
   const [host, path] = enterUrl ? enterParts(enterUrl) : ['', ''];
   const [copied, setCopied] = useState(false);
+  // The join code stays blurred until the host clicks it, so the intro can happen first.
+  const [shown, setShown] = useState(false);
   const copy = async () => {
     if (!enterUrl || !(await copyText(enterCommand(enterUrl)))) return;
     setCopied(true);
@@ -58,9 +60,12 @@ export function JoinSign({ url, enterUrl }: { url: string; enterUrl?: string }) 
   return (
     <div className="sign">
       <div className="panel sign-panel">
-        <div className="qr">{url ? <QRCodeSVG value={url} size={296} bgColor="#fcfcfc" fgColor="#14121f" level="M" /> : <div className="qr-empty" />}</div>
+        <button type="button" className={`qr qr-toggle${shown ? '' : ' is-hidden'}`} onClick={() => setShown((v) => !v)} aria-label={shown ? 'Hide the join code' : 'Show the join code'}>
+          {url ? <QRCodeSVG value={url} size={296} bgColor="#fcfcfc" fgColor="#14121f" level="M" /> : <div className="qr-empty" />}
+          {!shown && <span className="qr-cover">CLICK TO OPEN</span>}
+        </button>
         <div className="sign-title">SCAN TO BID</div>
-        <div className="sign-url">{url.replace(/^https?:\/\//, '')}</div>
+        <div className={`sign-url${shown ? '' : ' is-hidden'}`}>{url.replace(/^https?:\/\//, '')}</div>
       </div>
       {enterUrl && (
         <button type="button" className="enter" title={enterCommand(enterUrl)} onClick={copy} aria-label="Copy the agent command">

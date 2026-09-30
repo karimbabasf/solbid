@@ -110,6 +110,7 @@ export interface AuctionState {
   joinUrl: string;
   enterUrl?: string; // where outside agents buy a seat with pay.sh (POST, $0.05)
   lotsSold: number;
+  minPlayers: number; // lots only run once this many funded agents are in the room
   paused: boolean;
   serverTime: number;
 }

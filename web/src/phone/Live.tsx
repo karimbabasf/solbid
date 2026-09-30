@@ -44,7 +44,10 @@ function statusOf(agentId: string, agent: AgentPublic | null, state: AuctionStat
   const lot = state.lot;
   const phase = state.phase;
   if (agent && !agent.funded) return { id: 'funding', word: 'FUNDING', tone: 'think', sub: 'Filling your wallet on Solana' };
-  if (!lot || phase === 'lobby') return { id: 'waiting', word: 'WAITING', tone: 'dim', sub: 'Next lot soon' };
+  if (!lot || phase === 'lobby') {
+    const more = Math.max(0, (state?.minPlayers ?? 1) - (state?.agents.filter((a) => a.funded && a.balance >= 0.01).length ?? 0));
+    return { id: 'waiting', word: 'WAITING', tone: 'dim', sub: more > 0 ? `${more} more to start` : 'Next lot soon' };
+  }
   if (won && state.winner) return { id: 'won', word: 'YOU WON', amount: state.winner.amount, tone: 'gold', sub: phase === 'paying' ? 'Paying on Solana with x402' : 'Paid. It is in your bag.' };
   if (phase === 'intro') return { id: 'looking', word: 'LOOKING', tone: 'sky', sub: agent?.goalText ? `Wants: ${agent.goalText}` : undefined };
   if (phase === 'thinking') return { id: 'thinking', word: 'THINKING', tone: 'think', sub: 'Weighing it against your goal' };

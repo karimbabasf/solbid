@@ -11,6 +11,7 @@ import { Cloud, Hill, Px } from './art';
 import { Crowd, GROUND, PIPES, PIPE_TOP, layoutCrowd, type BubbleKind, type CrowdView, type Flash, type Mark, type Slot } from './crowd';
 import { Hud, JoinSign, Ladder, Leaders, Ticker } from './panels';
 import { useStageSound } from './useStageSound';
+import { KarimButton } from './Karim';
 import './stage.css';
 
 const W = 1920;
@@ -166,9 +167,10 @@ type PodiumProps = {
   fuse: number;
   paused: boolean;
   empty: boolean;
+  more: number;
 };
 
-function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, fuse, paused, empty }: PodiumProps) {
+function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, fuse, paused, empty, more }: PodiumProps) {
   const [bump, animateBump] = useAnimate<HTMLDivElement>();
   const live = !!lot && phase !== 'lobby';
   const hammer = phase === 'paying' || phase === 'sold';
@@ -272,8 +274,10 @@ function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, fuse, p
 
           ) : phase === 'unsold' ? (
             <motion.div key="nosale" className="pill pill-grey" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ delay: 0.1 }}>NO SALE</motion.div>
-          ) : !live && empty ? (
-            <motion.div key="wait" className="waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>WAITING FOR AGENTS</motion.div>
+          ) : !live && (empty || more > 0) ? (
+            <motion.div key={`wait-${more}`} className="waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              {more > 0 ? `WAITING FOR ${more} MORE` : 'WAITING FOR AGENTS'}
+            </motion.div>
           ) : null}
         </AnimatePresence>
       </div>
@@ -408,6 +412,7 @@ export default function Stage() {
         <div className="stage" style={{ transform: `translate(-50%, -50%) scale(${scale})` }}>
           <Sky />
           <Hud state={state} online={online} />
+          <KarimButton />
           <div className="corner">
             <InfoButton enterUrl={state?.enterUrl} />
             <SoundButton withMusic />
@@ -426,6 +431,7 @@ export default function Stage() {
             fuse={fuse}
             paused={!!state?.paused}
             empty={agents.length === 0}
+            more={Math.max(0, (state?.minPlayers ?? 1) - agents.filter((a) => a.funded && a.balance >= 0.01).length)}
           />
           {(phase === 'reveal' || phase === 'paying') && <Ladder ladder={ladder} agents={agents} />}
           <div className="ground" style={{ top: GROUND }} aria-hidden />

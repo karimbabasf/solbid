@@ -963,3 +963,119 @@
   .c3 { --rest: 1180px; }
   .c4 { --rest: 1500px; }
 }
+
+/* ---------- KARIM socials ---------- */
+
+.karim-btn {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 56px;
+  padding: 0 16px 0 10px;
+  font-family: var(--font-pixel);
+  font-size: 26px;
+  color: var(--ink);
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  box-shadow: inset 3px 3px 0 var(--gold-light), inset -3px -3px 0 var(--gold-dark), 0 4px 0 var(--ink);
+  transition: transform 90ms ease-out;
+}
+.karim-btn:hover { transform: translateY(-2px); }
+.karim-btn:active { transform: translateY(3px); }
+
+.karim-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgba(11, 11, 26, 0.72);
+}
+.karim-sheet {
+  position: relative;
+  padding: 44px 56px 40px;
+}
+.karim-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 52px;
+  height: 52px;
+  font-size: 26px;
+  color: var(--ink);
+  background: var(--gold);
+  border: 3px solid var(--ink);
+  box-shadow: 0 4px 0 var(--ink);
+}
+.karim-cards {
+  display: flex;
+  gap: 72px;
+}
+.karim-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.karim-label {
+  padding: 10px 18px 8px;
+  font-size: 34px;
+  line-height: 1;
+  color: var(--paper);
+  border: 4px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.karim-card.is-li .karim-label { background: #0a66c2; }
+.karim-card.is-x .karim-label { background: var(--ink); }
+.karim-qr {
+  padding: 22px;
+  background: var(--paper);
+  border: 6px solid var(--ink);
+  box-shadow: 8px 8px 0 var(--ink);
+}
+.karim-qr svg {
+  display: block;
+  width: 400px;
+  height: 400px;
+}
+.karim-handle {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 28px;
+  color: var(--ink);
+}
+
+/* The join code is blurred until the host opens it. */
+.qr-toggle {
+  position: relative;
+  display: block;
+  padding: 0;
+  background: none;
+  border: 0;
+}
+.qr-toggle svg {
+  transition: filter 240ms ease-out;
+}
+.qr-toggle.is-hidden svg {
+  filter: blur(14px);
+}
+.qr-cover {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 14px 8px;
+  font-size: 24px;
+  white-space: nowrap;
+  color: var(--ink);
+  background: var(--gold);
+  border: 4px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.sign-url.is-hidden {
+  filter: blur(6px);
+}

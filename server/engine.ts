@@ -39,6 +39,7 @@ const MAX_AGENTS = Number(process.env.MAX_AGENTS) || 12;
 const MAX_PAYMENTS = 24;
 const FUND_USD = START_BUDGET; // devnet test USDC from our own mint, so every agent starts with ten
 const OPEN = 0.01; // every lot opens at one cent
+const MIN_PLAYERS = Math.max(1, Number(process.env.MIN_PLAYERS) || 3); // a war needs rivals, so lots wait for a few people
 const T = { intro: 2200, thinkingMin: 1500, decideMax: 6000, firstRaise: 450, hold: 1600, payingMin: 1500, sold: 4500, unsold: 2200 };
 
 let rail: PayRail;
@@ -141,6 +142,7 @@ export function snapshot(): AuctionState {
     joinUrl,
     enterUrl: process.env.ENTER_URL ? `${process.env.ENTER_URL.replace(/\/$/, '')}/enter` : undefined,
     lotsSold,
+    minPlayers: MIN_PLAYERS,
     paused,
     serverTime: Date.now(),
   };
@@ -555,7 +557,7 @@ async function runLot() {
   await sleep(T.sold);
 }
 
-const canPlay = () => [...agents.values()].some((a) => a.funded && a.balance >= OPEN);
+const canPlay = () => [...agents.values()].filter((a) => a.funded && a.balance >= OPEN).length >= MIN_PLAYERS;
 
 async function loop() {
   for (;;) {

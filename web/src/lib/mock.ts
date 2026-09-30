@@ -165,7 +165,7 @@ export function startMock(setState: (s: AuctionState) => void, setMe: (m: MeStat
     const live = phase === 'reveal' || phase === 'paying' || phase === 'sold';
     setState({
       phase, phaseEndsAt, lot, bids, winner, agents: [...agents], payments: payments.slice(0, 24), network: 'devnet', payMode: 'x402',
-      joinUrl: `${location.origin}/play`, enterUrl: 'https://example.trycloudflare.com/enter', lotsSold, paused: false, serverTime: Date.now(),
+      joinUrl: `${location.origin}/play`, enterUrl: 'https://example.trycloudflare.com/enter', lotsSold, minPlayers: 1, paused: false, serverTime: Date.now(),
       ladder: live ? ladder : [], price: live ? price() : 0, next: lot ? nextPrice() : 0, going: phase === 'reveal' && going,
     });
     if (me) setMe({ agent: agents.find((a) => a.id === me) ?? null, deliveries: deliveries.filter((d) => d.agentId === me) });
