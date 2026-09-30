@@ -6,3 +6,6 @@ dist
 data/
 *.log
 shots/
+
+# Stage notes stay on this machine
+DEMO.md
