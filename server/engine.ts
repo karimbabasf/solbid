@@ -154,12 +154,13 @@ function uniqueName(want?: string) {
   return `AG${agents.size + 1}`;
 }
 
-async function fund(a: Agent) {
-  const pid = `fund-${a.id}`;
+async function fund(a: Agent, refill = false) {
+  const pid = `fund-${a.id}-${Date.now().toString(36)}`;
   pushPayment({ id: pid, kind: 'fund', agentId: a.id, amount: 1, status: 'pending', at: Date.now() });
   let r = await withTimeout(rail.fundAgent(a.wallet, 1), 30000, { status: 'failed' as const });
   if (r.status === 'failed') r = await withTimeout(rail.fundAgent(a.wallet, 1), 30000, { status: 'failed' as const });
   patchPayment(pid, { status: r.status, sig: r.sig, explorer: r.sig ? rail.explorer(r.sig) : undefined });
+  if (refill && r.status !== 'failed') a.balance = round2(a.balance + 1);
   a.funded = true; // a failed fund still lets the agent play; its payments fall back down the rail
   broadcast();
 }
@@ -286,6 +287,8 @@ async function runLot() {
   const delivery: Delivery = { lotId: lot.id, agentId: agent.id, icon: item.icon, name: item.name, price: amount, content: await content, sig: res.sig, explorer, at: Date.now() };
   agent.deliveries = [delivery, ...agent.deliveries].slice(0, 30);
   setPhase('sold', T.sold);
+  // House bots keep the room lively: when one runs low it gets another dollar, on chain like everyone else.
+  if (agent.house && agent.balance < 0.2) void fund(agent, true);
   if (res.status === 'confirmed') {
     void rail.getBalance(agent.wallet).then((b) => {
       if (b !== null && Number.isFinite(b)) {
