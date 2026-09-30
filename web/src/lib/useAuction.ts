@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AuctionState, MeState } from '@shared/types';
-import { startMock } from './mock';
+import { mockApi, startMock } from './mock';
 
 // ?mock=1 runs a scripted auction in the browser so the UI works with no server.
 export const isMock = new URLSearchParams(location.search).has('mock');
@@ -21,12 +21,15 @@ export function useAuction(agentId?: string | null) {
     const opened = Date.now();
     // If the stream goes quiet (a proxy buffering it, a dead connection), poll a snapshot instead.
     // Cloudflare quick tunnels never deliver SSE, so a stream silent for 5s is closed for good there.
+    let busy = false;
     const poll = setInterval(async () => {
+      if (busy) return;
       if (!sseDead && lastEvent === 0 && Date.now() - opened > 5000) {
         sseDead = true;
         es?.close();
       }
       if (Date.now() - lastEvent < 3000) return;
+      busy = true;
       try {
         const r = await fetch(agentId ? `/api/state?agent=${encodeURIComponent(agentId)}` : '/api/state', { cache: 'no-store' });
         if (!r.ok) throw new Error(String(r.status));
@@ -37,8 +40,10 @@ export function useAuction(agentId?: string | null) {
         setOnline(true);
       } catch {
         setOnline(false);
+      } finally {
+        busy = false;
       }
-    }, 1000);
+    }, 450); // the bidding war raises every ~0.6s, so polling clients (tunnels drop SSE) need to keep up
     const open = () => {
       es = new EventSource(url);
       es.addEventListener('state', (e) => {
@@ -77,7 +82,7 @@ export function useAuction(agentId?: string | null) {
 }
 
 export async function api<T = unknown>(path: string, body?: unknown): Promise<T | null> {
-  if (isMock) return null;
+  if (isMock) return (mockApi(path, body) as T) ?? null;
   try {
     const r = await fetch(path, {
       method: body === undefined ? 'GET' : 'POST',

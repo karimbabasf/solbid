@@ -1,10 +1,15 @@
 // The one contract between server, stage and phone. Change it only in the lead thread.
 
+// reveal = the live bidding war: every lot opens at one cent and agents raise against each other until one is left.
 export type Phase = 'lobby' | 'intro' | 'thinking' | 'reveal' | 'paying' | 'sold' | 'unsold';
 
 export type GoalId = 'laugh' | 'art' | 'alpha' | 'weather' | 'custom';
 
-export type ItemIcon = 'joke' | 'art' | 'weather' | 'secret' | 'price' | 'fortune' | 'haiku' | 'coffee';
+export type ItemIcon =
+  | 'joke' | 'art' | 'weather' | 'secret' | 'price' | 'fortune' | 'haiku' | 'coffee'
+  | 'roast' | 'meme' | 'sunset' | 'crystal' | 'rocket' | 'heart' | 'wish';
+
+export type Rarity = 'common' | 'rare' | 'epic' | 'legendary';
 
 export type Risk = 'low' | 'mid' | 'high';
 
@@ -32,16 +37,30 @@ export interface Lot {
   itemId: string;
   name: string; // 1-2 words
   icon: ItemIcon;
-  reserve: number; // USDC floor
+  reserve: number; // opening price in USDC, same as open
+  open: number; // every lot opens here (0.01)
+  rarity: Rarity;
+  teaser: string; // what the winner gets, <= 60 chars, e.g. "A roast written live about you"
+  forAgentId?: string; // the guest this lot was picked for (their goal fits it)
   seller: string; // pubkey that gets paid
+}
+
+// One raise in the bidding war, oldest first.
+export interface Raise {
+  agentId: string;
+  amount: number;
+  at: number; // epoch ms
+  manual?: boolean; // the human pressed BID on their phone
 }
 
 export interface Bid {
   agentId: string;
-  amount: number | null; // null = pass
+  amount: number | null; // this agent's latest raise so far, null = has not raised
   need: number; // 0..100, how much the guest needs this
-  risk: Risk; // how much of the remaining budget this bid puts at stake
+  risk: Risk; // how much of the wallet this agent is willing to stake on the lot
   reason: string; // <= 60 chars
+  state: 'pass' | 'in' | 'out'; // pass = never bidding on this lot, in = still in the war, out = dropped when the price passed its limit
+  manual?: 'bid' | 'pass'; // the human overrode the agent from their phone
 }
 
 export type PaymentStatus = 'pending' | 'confirmed' | 'failed' | 'simulated';
@@ -80,6 +99,10 @@ export interface AuctionState {
   lot: Lot | null;
   bids: Bid[]; // filled during 'thinking' (hidden) and shown from 'reveal'
   winner: { agentId: string; amount: number } | null;
+  ladder: Raise[]; // the bidding war so far, oldest first; empty outside reveal/paying/sold
+  price: number; // current high bid, 0 before the first raise
+  next: number; // the amount the next raise must reach
+  going: boolean; // nobody else will raise: going once, going twice, then the hammer at phaseEndsAt
   agents: AgentPublic[];
   payments: Payment[]; // newest first, max 24
   network: 'devnet' | 'mainnet';
@@ -99,13 +122,21 @@ export interface MeState {
   deliveries: Delivery[]; // newest first
 }
 
-// POST /api/join  body JoinRequest -> { agentId: string }
+// POST /api/join  body JoinRequest -> JoinResponse
+// POST /api/agent/:id/act    body { key, action: 'bid' | 'pass' } -> { ok: boolean; error?: string }
+//   bid: raise now to state.next (or, before the war, tell the agent you want this lot). pass: skip or drop out of this lot.
+// POST /api/agent/:id/leave  body { key } -> { ok: boolean }   removes the agent from the room
+export interface JoinResponse {
+  agentId: string;
+  key: string; // keep it on the phone: it signs act and leave
+}
+
 export interface JoinRequest {
   goal: GoalId;
   text?: string; // custom goal line
   color?: number;
   sprite?: number;
-  name?: string;
+  name?: string; // up to 7 letters or digits, uppercased; a free name is picked when taken or empty
 }
 
 // POST /api/host/:action  action = start | pause | next | reset | bots

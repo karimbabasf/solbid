@@ -61,7 +61,7 @@ export function Coin({ size = 16, className, style }: { size?: number; className
   return <Grid rows={COIN} colors={{ k: INK, y: '#F8C630', l: '#FFF1A8', d: '#C8841A' }} size={size} className={className} style={style} />;
 }
 
-const ICONS: Record<ItemIcon, { rows: string[]; colors: Record<string, string> }> = {
+const ICONS: Partial<Record<ItemIcon, { rows: string[]; colors: Record<string, string> }>> = {
   joke: {
     rows: ['...kkkkkk...', '..kyyyyyyk..', '.kyyyyyyyyk.', 'kyykyyyykyyk', 'kyykyyyykyyk', 'kyyyyyyyyyyk', 'kykkkkkkkkyk', 'kykwwwwwwkyk', '.kykwwwwkyk.', '..kykkkkyk..', '...kkkkkk...'],
     colors: { k: INK, y: '#F8C630', w: '#FCFCFC' },
@@ -97,7 +97,7 @@ const ICONS: Record<ItemIcon, { rows: string[]; colors: Record<string, string> }
 };
 
 export function ItemSprite({ icon, size = 48, className, style }: { icon: ItemIcon; size?: number; className?: string; style?: CSSProperties }) {
-  const def = ICONS[icon] ?? ICONS.secret;
+  const def = ICONS[icon] ?? ICONS.secret!;
   return <Grid rows={def.rows} colors={def.colors} size={size} className={className} style={style} />;
 }
 

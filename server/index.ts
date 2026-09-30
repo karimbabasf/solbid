@@ -103,11 +103,10 @@ app.post('/api/host/url', async (c) => {
   const { url } = await c.req.json().catch(() => ({ url: '' }));
   if (typeof url === 'string' && /^https?:\/\//.test(url)) setJoinUrl(`${url.replace(/\/$/, '')}/play`);
   return c.json({ ok: true });
+});
 
 // After /api/host/url: a :action route registered first would swallow it.
 app.post('/api/host/:action', (c) => (host(c.req.param('action')) ? c.json({ ok: true }) : c.json({ ok: false }, 400)));
-
-});
 
 if (PROD && existsSync('dist/index.html')) {
   app.use('/assets/*', serveStatic({ root: './dist' }));
