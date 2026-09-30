@@ -1372,11 +1372,12 @@
   padding: 6px 4px 4px 0;
 }
 
-/* Rarity: the same colors as the kit LotCard frames */
-.rar-common { --rar: #c84c0c; --rar-l: #fc9838; --rar-bg: #5c94fc; }
-.rar-rare { --rar: #3d7be0; --rar-l: #8cb8ff; --rar-bg: #1d3f86; }
-.rar-epic { --rar: #8b5cf6; --rar-l: #c4a8ff; --rar-bg: #2e1a66; }
-.rar-legendary { --rar: #f8c630; --rar-l: #fff1a8; --rar-bg: #6b3d06; }
+/* Rarity: the kit tokens, so the win screen and LotCard never drift */
+/* --rar-bg mirrors the art backgrounds in kit.css, which has no token for them. */
+.rar-common { --rar: var(--rar-common); --rar-l: var(--rar-common-light); --rar-bg: #5c94fc; }
+.rar-rare { --rar: var(--rar-rare); --rar-l: var(--rar-rare-light); --rar-bg: #1d3f86; }
+.rar-epic { --rar: var(--rar-epic); --rar-l: var(--rar-epic-light); --rar-bg: #2e1a66; }
+.rar-legendary { --rar: var(--rar-legendary); --rar-l: var(--rar-legendary-light); --rar-bg: #6b3d06; }
 .ph-card-art[class*='rar-'] {
   background: var(--rar-bg);
 }
