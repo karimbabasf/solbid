@@ -57,10 +57,17 @@ app.route('/paid', enterRoutes); // pay.sh gateway (server/pay/gate.ts) forwards
 
 app.get('/api/health', (c) => c.json({ ok: true, pay: rail.payInfo(), agents: snapshot().agents.length, phase: snapshot().phase, joinUrl: snapshot().joinUrl }));
 
-app.get('/api/stream', (c) =>
-  streamSSE(c, async (stream) => {
+// Plain JSON snapshot: the client falls back to polling this when a proxy buffers the stream.
+app.get('/api/state', (c) => {
+  const agentId = c.req.query('agent');
+  return c.json({ state: snapshot(), me: agentId ? meState(agentId) : null });
+});
+
+app.get('/api/stream', (c) => {
+  const res = streamSSE(c, async (stream) => {
     const agentId = c.req.query('agent') || undefined;
     let open = true;
+    await stream.write(`:${' '.repeat(2048)}\n\n`); // push past proxy buffers
     const remove = addClient({
       agentId,
       send: (event, data) => {
@@ -75,8 +82,12 @@ app.get('/api/stream', (c) =>
       if (open) await stream.writeSSE({ event: 'ping', data: '' }).catch(() => (open = false));
     }
     remove();
-  }),
-);
+  });
+  // no-transform stops Cloudflare from compressing (and so buffering) the stream.
+  res.headers.set('Cache-Control', 'no-cache, no-transform');
+  res.headers.set('X-Accel-Buffering', 'no');
+  return res;
+});
 
 app.post('/api/join', async (c) => {
   const body = await c.req.json().catch(() => ({}));
