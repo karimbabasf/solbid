@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion, type Easing } from 'motion/react';
+import { AnimatePresence, motion, useAnimate, type Easing } from 'motion/react';
 import type { AgentPublic } from '@shared/types';
 import { AgentSprite, usd } from '../kit/sprites';
 import { Crown, Px } from './art';
@@ -51,39 +51,76 @@ export function layoutCrowd(agents: AgentPublic[]): CrowdLayout {
   return { slots, size, ledges, tags: pitch >= 52 };
 }
 
-export type BubbleKind = 'none' | 'think' | 'bid' | 'pass';
+export type BubbleKind = 'none' | 'think' | 'bid' | 'out';
+export type Mark = 'pass' | 'out';
+export interface Flash { key: string; text: string; delay: number; lift: number }
+
+export interface CrowdView {
+  bubble: Map<string, BubbleKind>;
+  amount: Map<string, number>;
+  manual: Set<string>;
+  hop: Map<string, number>; // ladder index of this agent's latest raise; a new index makes it jump
+  mark: Map<string, Mark>;
+  flash: Map<string, Flash>;
+  crownId: string | null;
+  spotId: string | null;
+  jumpId: string | null;
+}
 
 const TAIL = ['kbbbbk', '.kbbk.', '..kk..'];
-function Bubble({ kind, amount, delay, top }: { kind: BubbleKind; amount: number; delay: number; top: boolean }) {
-  const [shown, setShown] = useState(delay <= 0);
-  useEffect(() => {
-    if (delay <= 0) return setShown(true);
-    setShown(false);
-    const t = setTimeout(() => setShown(true), delay);
-    return () => clearTimeout(t);
-  }, [delay, kind]);
-  const k = kind !== 'think' && !shown ? 'think' : kind;
-  const fill = k === 'bid' ? '#f8c630' : k === 'pass' ? '#dfe3ee' : '#fcfcfc';
+const FILL: Record<BubbleKind, string> = { none: '#fcfcfc', think: '#fcfcfc', bid: '#f8c630', out: '#b9bdcc' };
+
+function Bubble({ kind, amount, manual }: { kind: BubbleKind; amount: number; manual: boolean }) {
   return (
     <motion.div
-      key={k}
-      className={`bubble b-${k}${top && k === 'bid' ? ' is-top' : ''}`}
+      className={`bubble b-${kind}`}
       initial={{ scale: 0.4, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0.4, opacity: 0, transition: { duration: 0.12 } }}
-      transition={{ type: 'spring', stiffness: 700, damping: 22 }}
+      exit={{ scale: 0.4, opacity: 0, transition: { duration: 0.1 } }}
+      transition={{ type: 'spring', stiffness: 800, damping: 22 }}
     >
       <div className="bubble-box">
-        {k === 'think' && (
+        {kind === 'think' && (
           <span className="dots" aria-label="thinking">
             <i /><i /><i />
           </span>
         )}
-        {k === 'bid' && <span className="amt">{usd(amount)}</span>}
-        {k === 'pass' && <span className="pass">PASS</span>}
+        {kind === 'bid' && <span className="amt">{usd(amount)}</span>}
+        {kind === 'out' && <span className="out">OUT</span>}
       </div>
-      <Px rows={TAIL} colors={{ k: '#14121f', b: fill }} px={4} className="bubble-tail" />
+      {kind === 'bid' && manual && <span className="human">HUMAN</span>}
+      <Px rows={TAIL} colors={{ k: '#14121f', b: FILL[kind] }} px={4} className="bubble-tail" />
     </motion.div>
+  );
+}
+
+/** A pass agent says why once, early in the war, then goes quiet. */
+function PassFlash({ text, delay, lift }: { text: string; delay: number; lift: number }) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const a = setTimeout(() => setOn(true), delay);
+    const b = setTimeout(() => setOn(false), delay + 2200);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, [delay]);
+  return (
+    <AnimatePresence>
+      {on && (
+        <motion.div
+          className="flash"
+          style={{ marginBottom: lift }}
+          initial={{ opacity: 0, y: 10, scale: 0.8 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, transition: { duration: 0.15 } }}
+          transition={{ type: 'spring', stiffness: 600, damping: 24 }}
+        >
+          <div className="flash-box">{text}</div>
+          <Px rows={TAIL} colors={{ k: '#14121f', b: '#dfe3ee' }} px={3} className="bubble-tail" />
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -98,11 +135,16 @@ type AgentProps = {
   tags: boolean;
   bubble: BubbleKind;
   amount: number;
-  delay: number;
-  top: boolean;
+  manual: boolean;
   crowned: boolean;
   jumping: boolean;
-  dim: boolean;
+  hop: number;
+  mark: Mark | null;
+  spot: boolean;
+  flashKey: string;
+  flashText: string;
+  flashDelay: number;
+  flashLift: number;
 };
 
 const safe = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
@@ -116,7 +158,7 @@ const Agent = memo(function Agent(p: AgentProps) {
     const dx = pipe - p.x;
     const lift = PIPE_TOP - p.y; // 0 on a ledge, -180 on the ground
     const peak = Math.min(lift, 0) - 90;
-    const base = { delay: p.stagger, duration: 1.3, times: [0, 0.3, 0.42, 0.72, 1] };
+    const base = { delay: p.stagger, duration: 1, times: [0, 0.3, 0.42, 0.72, 1] };
     return {
       initial: { x: dx, y: lift + 110 },
       animate: { x: [dx, dx, dx, dx * 0.45, 0], y: [lift + 110, lift - 36, lift - 6, peak, 0] },
@@ -126,52 +168,66 @@ const Agent = memo(function Agent(p: AgentProps) {
       },
     };
   });
+  const [hopScope, animate] = useAnimate<HTMLDivElement>();
+  const lastHop = useRef(p.hop);
+  useEffect(() => {
+    if (p.hop === lastHop.current) return;
+    lastHop.current = p.hop;
+    if (p.hop >= 0 && hopScope.current) animate(hopScope.current, { y: [0, -Math.round(p.size * 0.7), 0] }, { duration: 0.34, ease: ['easeOut', 'easeIn'], times: [0, 0.45, 1] });
+  }, [p.hop, p.size, animate, hopScope]);
   const h = (p.size * 13) / 12;
+  const mark = p.mark ? ` is-${p.mark}` : '';
   return (
     <motion.div
       className="agent"
       initial={false}
       animate={{ x: p.x, y: p.y }}
       transition={{ type: 'spring', stiffness: 170, damping: 22 }}
-      exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.3 } }}
-      style={{ zIndex: p.crowned ? 3 : 1 }}
+      exit={{ opacity: 0, scale: 0.6, transition: { duration: 0.25 } }}
+      style={{ zIndex: p.crowned ? 3 : p.flashText ? 2 : 1 }}
     >
       <motion.div className="agent-entry" initial={entry?.initial ?? false} animate={entry?.animate} transition={entry?.transition}>
-        <div className={`agent-body${p.jumping ? ' is-jumping' : ''}${p.dim ? ' is-dim' : ''}`} style={{ animationDelay: `${-(p.index % 7) * 0.17}s` }}>
-          <AgentSprite color={safe(p.agent.color)} sprite={safe(p.agent.sprite)} size={p.size} title={p.agent.name} />
-          <AnimatePresence>
-            {p.crowned && (
-              <motion.div
-                className="crown"
-                initial={{ y: -40, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 16 }}
-              >
-                <Crown px={p.size >= 60 ? 4 : 3} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div ref={hopScope} className="agent-hop">
+          <div className={`agent-body${p.jumping ? ' is-jumping' : ''}${mark}`} style={{ animationDelay: `${-(p.index % 7) * 0.17}s` }}>
+            <AgentSprite color={safe(p.agent.color)} sprite={safe(p.agent.sprite)} size={p.size} title={p.agent.name} />
+            <AnimatePresence>
+              {p.crowned && (
+                <motion.div
+                  className="crown"
+                  initial={{ y: -40, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ opacity: 0, transition: { duration: 0.1 } }}
+                  transition={{ type: 'spring', stiffness: 600, damping: 18 }}
+                >
+                  <Crown px={p.size >= 60 ? 4 : 3} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
         {p.tags && (
-          <motion.div className={`tag${p.agent.house ? ' is-house' : ''}`} initial={entry ? { opacity: 0 } : false} animate={{ opacity: 1 }} transition={{ delay: entry ? p.stagger + 1.25 : 0, duration: 0.2 }}>
+          <motion.div
+            className={`tag${p.agent.house ? ' is-house' : ''}${p.spot ? ' is-spot' : ''}`}
+            initial={entry ? { opacity: 0 } : false}
+            animate={{ opacity: 1 }}
+            transition={{ delay: entry ? p.stagger + 0.95 : 0, duration: 0.2 }}
+          >
             {(p.agent.name || '???').slice(0, 8)}
             {p.agent.via === 'pay.sh' && <span className="via">PAY.SH</span>}
           </motion.div>
         )}
         <div className={`bubble-anchor${p.size < 60 ? ' is-dense' : ''}`} style={{ bottom: h + (p.crowned ? 34 : 12) }}>
           <AnimatePresence mode="popLayout">
-            {p.bubble !== 'none' && <Bubble key={p.bubble} kind={p.bubble} amount={p.amount} delay={p.delay} top={p.top} />}
+            {p.bubble !== 'none' && <Bubble key={p.bubble} kind={p.bubble} amount={p.amount} manual={p.manual} />}
           </AnimatePresence>
+          {p.flashText && <PassFlash key={p.flashKey} text={p.flashText} delay={p.flashDelay} lift={p.flashLift} />}
         </div>
       </motion.div>
     </motion.div>
   );
 });
 
-export interface CrowdBids { kind: Map<string, BubbleKind>; amount: Map<string, number>; delay: Map<string, number>; topId: string | null }
-
-export function Crowd({ agents, layout, bids, crownId, jumpId, dimOthers }: { agents: AgentPublic[]; layout: CrowdLayout; bids: CrowdBids; crownId: string | null; jumpId: string | null; dimOthers: boolean }) {
+export function Crowd({ agents, layout, view }: { agents: AgentPublic[]; layout: CrowdLayout; view: CrowdView }) {
   const seen = useRef(new Set<string>());
   const first = useRef(true);
   const fresh: string[] = [];
@@ -190,6 +246,7 @@ export function Crowd({ agents, layout, bids, crownId, jumpId, dimOthers }: { ag
           const s = layout.slots.get(a.id);
           if (!s) return null;
           const spawnIndex = fresh.indexOf(a.id);
+          const flash = view.flash.get(a.id);
           return (
             <Agent
               key={a.id}
@@ -198,16 +255,21 @@ export function Crowd({ agents, layout, bids, crownId, jumpId, dimOthers }: { ag
               y={s.y}
               size={s.size}
               index={i}
-              stagger={first.current ? Math.max(spawnIndex, 0) * 0.12 : 0}
+              stagger={first.current ? Math.max(spawnIndex, 0) * 0.1 : 0}
               spawn={spawnIndex >= 0}
               tags={layout.tags}
-              bubble={bids.kind.get(a.id) ?? 'none'}
-              amount={bids.amount.get(a.id) ?? 0}
-              delay={bids.delay.get(a.id) ?? 0}
-              top={bids.topId === a.id}
-              crowned={crownId === a.id}
-              jumping={jumpId === a.id}
-              dim={dimOthers && crownId !== a.id}
+              bubble={view.bubble.get(a.id) ?? 'none'}
+              amount={view.amount.get(a.id) ?? 0}
+              manual={view.manual.has(a.id)}
+              crowned={view.crownId === a.id}
+              jumping={view.jumpId === a.id}
+              hop={view.hop.get(a.id) ?? -1}
+              mark={view.mark.get(a.id) ?? null}
+              spot={view.spotId === a.id}
+              flashKey={flash?.key ?? ''}
+              flashText={flash?.text ?? ''}
+              flashDelay={flash?.delay ?? 0}
+              flashLift={flash?.lift ?? 0}
             />
           );
         })}

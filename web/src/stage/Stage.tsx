@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion, useAnimate } from 'motion/react';
-import type { AuctionState, Lot, Phase } from '@shared/types';
+import type { AuctionState, Lot, Phase, Raise } from '@shared/types';
 import { api, useAuction } from '../lib/useAuction';
-import { Coin, ItemSprite, usd } from '../kit/sprites';
+import { Coin, usd } from '../kit/sprites';
+import { LotCard } from '../kit/LotCard';
+import { InfoButton } from '../kit/Info';
+import { SoundButton } from '../kit/SoundButton';
 import { Cloud, Hill, Px, QBlock } from './art';
-import { Crowd, GROUND, PIPES, PIPE_TOP, layoutCrowd, type BubbleKind, type CrowdBids, type Slot } from './crowd';
-import { Hud, JoinSign, Leaders, Ticker } from './panels';
+import { Crowd, GROUND, PIPES, PIPE_TOP, layoutCrowd, type BubbleKind, type CrowdView, type Flash, type Mark, type Slot } from './crowd';
+import { Hud, JoinSign, Ladder, Leaders, Ticker } from './panels';
+import { useStageSound } from './useStageSound';
 import './stage.css';
 
 const W = 1920;
 const H = 1080;
-const BLOCK_TOP = 404;
-const ITEM_Y = 300; // centre of the floating lot
+const BLOCK_TOP = 560;
+const CARD_BASE = BLOCK_TOP - 6; // the card's bottom edge rests on the block
+const CARD_MAX = { w: 460, h: CARD_BASE - 48 };
 const CX = W / 2;
 
 function useFit() {
@@ -45,7 +50,17 @@ function useHostKeys(state: AuctionState | null) {
   }, []);
 }
 
-/** Server-anchored clock: 0..1 of the current phase left, ticking only while `on`. */
+/** Re-renders every 100ms while `on`, so server-timed labels move between snapshots. */
+function useTick(on: boolean) {
+  const [, tick] = useState(0);
+  useEffect(() => {
+    if (!on) return;
+    const t = setInterval(() => tick((n) => n + 1), 100);
+    return () => clearInterval(t);
+  }, [on]);
+}
+
+/** Server-anchored clock: 0..1 of the current phase left. */
 function usePhaseLeft(state: AuctionState | null, on: boolean) {
   const skew = useRef(0);
   const start = useRef<{ phase: Phase | null; at: number }>({ phase: null, at: 0 });
@@ -53,16 +68,23 @@ function usePhaseLeft(state: AuctionState | null, on: boolean) {
     skew.current = state.serverTime - Date.now();
     if (start.current.phase !== state.phase) start.current = { phase: state.phase, at: state.serverTime };
   }
-  const [, tick] = useState(0);
-  useEffect(() => {
-    if (!on) return;
-    const t = setInterval(() => tick((n) => n + 1), 100);
-    return () => clearInterval(t);
-  }, [on]);
+  useTick(on);
   if (!state || !state.phaseEndsAt) return 1;
   const now = Date.now() + skew.current;
   const total = Math.max(1, state.phaseEndsAt - start.current.at);
   return Math.max(0, Math.min(1, (state.phaseEndsAt - now) / total));
+}
+
+/** 0 while the war is live, 1 for "going once", 2 for "going twice": halves of the hold before the hammer. */
+function useGoing(state: AuctionState | null): 0 | 1 | 2 {
+  const key = state?.going && state.phase === 'reveal' && state.lot ? `${state.lot.id}:${state.ladder?.length ?? 0}` : null;
+  const since = useRef<{ key: string; at: number } | null>(null);
+  if (key && since.current?.key !== key) since.current = { key, at: Date.now() };
+  useTick(!!key);
+  if (!key || !state || !since.current) return 0;
+  const end = state.phaseEndsAt - (state.serverTime - Date.now());
+  const span = Math.max(1, end - since.current.at);
+  return (Date.now() - since.current.at) / span < 0.5 ? 1 : 2;
 }
 
 function Sky() {
@@ -103,70 +125,134 @@ function Fuse({ left }: { left: number }) {
   );
 }
 
+const cents = (n: number) => (n < 1 ? `${Math.round(n * 100)}¢` : usd(n));
+
 type Target = { x: number; y: number } | null;
 
-function Podium({ lot, phase, winnerAt, price, fuse, paused, empty }: { lot: Lot | null; phase: Phase; winnerAt: Target; price: number; fuse: number; paused: boolean; empty: boolean }) {
-  const [scope, animate] = useAnimate<HTMLDivElement>();
+type PodiumProps = {
+  lot: Lot | null;
+  phase: Phase;
+  winnerAt: Target;
+  soldPrice: number;
+  price: number;
+  raises: number;
+  going: 0 | 1 | 2;
+  forName?: string;
+  fuse: number;
+  paused: boolean;
+  empty: boolean;
+};
+
+function Podium({ lot, phase, winnerAt, soldPrice, price, raises, going, forName, fuse, paused, empty }: PodiumProps) {
+  const [block, animateBlock] = useAnimate<HTMLDivElement>();
+  const [bump, animateBump] = useAnimate<HTMLDivElement>();
   const live = !!lot && phase !== 'lobby';
   const used = live && phase !== 'unsold';
-  useEffect(() => {
-    if (phase === 'intro' && scope.current) animate(scope.current, { y: [0, -32, 0] }, { duration: 0.28, ease: 'easeOut' });
-  }, [phase, lot?.id, animate, scope]);
+  const hammer = phase === 'paying' || phase === 'sold';
+  const early = phase === 'intro' || phase === 'thinking';
 
-  let itemAnim: Record<string, number | number[]> = { x: 0, y: 0, scale: 1, opacity: 1 };
-  let itemTrans: object = { type: 'spring', stiffness: 380, damping: 14 };
+  useEffect(() => {
+    if (phase === 'intro' && block.current) animateBlock(block.current, { y: [0, -32, 0] }, { duration: 0.24, ease: 'easeOut' });
+  }, [phase, lot?.id, animateBlock, block]);
+  // The kit owns the card's size; the stage scales it down to fit between the HUD and the block.
+  const [fit, setFit] = useState(1);
+  useLayoutEffect(() => {
+    const el = bump.current;
+    if (!el) return;
+    const measure = () => el.offsetHeight && setFit(Math.min(1, CARD_MAX.h / el.offsetHeight, CARD_MAX.w / el.offsetWidth));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [lot?.id, live, bump]);
+  useEffect(() => {
+    if (raises > 0 && bump.current) animateBump(bump.current, { scale: [1.06, 1], rotate: [raises % 2 ? -1.5 : 1.5, 0] }, { duration: 0.24, ease: 'easeOut' });
+  }, [raises, animateBump, bump]);
+
+  let cardAnim: Record<string, number | number[]> = { x: 0, y: 0, scale: 1, opacity: 1 };
+  let cardTrans: object = { type: 'spring', stiffness: 460, damping: 20 };
   if (phase === 'sold' && winnerAt) {
-    itemAnim = { x: winnerAt.x - CX, y: winnerAt.y - ITEM_Y, scale: 0.3, opacity: [1, 1, 1, 0] };
-    itemTrans = { delay: 0.55, duration: 0.8, ease: [0.5, 0, 0.3, 1] };
+    cardAnim = { x: winnerAt.x - CX, y: winnerAt.y - CARD_BASE, scale: 0.12, opacity: [1, 1, 0] };
+    cardTrans = { delay: 0.3, duration: 0.55, ease: [0.5, 0, 0.3, 1] };
   } else if (phase === 'unsold') {
-    itemAnim = { x: 0, y: 190, scale: 0.7, opacity: 1 };
-    itemTrans = { duration: 0.6, ease: 'easeIn' };
+    cardAnim = { x: 0, y: 70, scale: 0.2, opacity: 0 };
+    cardTrans = { duration: 0.32, ease: 'easeIn' };
   }
 
   return (
     <div className="podium">
-      <AnimatePresence>
-        {live && lot && (
-          <motion.div
-            key={lot.id}
-            className="lot-item"
-            initial={{ y: 190, scale: 0.6, opacity: 1 }}
-            animate={itemAnim}
-            exit={{ opacity: 0, transition: { duration: 0.15 } }}
-            transition={itemTrans}
-          >
-            <div className={phase === 'sold' || phase === 'unsold' ? '' : 'float'}>
-              <ItemSprite icon={lot.icon} size={144} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className="card-slot" style={{ bottom: H - CARD_BASE }}>
+        <AnimatePresence>
+          {live && lot && (
+            <motion.div
+              key={lot.id}
+              className="card-pop"
+              initial={{ y: 60, scale: 0.15, opacity: 0 }}
+              animate={cardAnim}
+              exit={{ opacity: 0, transition: { duration: 0.12 } }}
+              transition={cardTrans}
+            >
+              <div className="card-fit" style={{ scale: fit }}>
+                <div ref={bump}>
+                  <LotCard lot={lot} price={price > 0 ? price : undefined} going={going > 0} forName={forName} size="lg" />
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-      <div ref={scope} className={`block${live ? '' : ' is-idle'}`}>
+      <div ref={block} className={`block${live ? '' : ' is-idle'}`}>
         <QBlock used={used} />
       </div>
 
-      <AnimatePresence mode="wait">
-        {live && lot && (
-          <motion.div key={lot.id} className="lot-label" initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ delay: 0.25, duration: 0.3 }}>
-            <div className="lot-name">{lot.name.toUpperCase()}</div>
-            <div className="lot-reserve" style={{ opacity: phase === 'sold' ? 0 : 1 }}>RESERVE {usd(lot.reserve || 0)}</div>
+      <AnimatePresence>
+        {live && lot && early && (
+          <motion.div key={`chips-${lot.id}`} className="block-chips" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }} transition={{ delay: 0.1, duration: 0.15 }}>
+            <span className="chip-lot">LOT {lot.index}</span>
+            <span className="chip-open">OPENS {cents(lot.open || lot.reserve || 0.01)}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="podium-status">
+      <AnimatePresence>
+        {phase === 'paying' && !paused && (
+          <motion.div key="pay" className="pay-slot" initial={{ x: -40, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.15 } }} transition={{ delay: 0.25, type: 'spring', stiffness: 500, damping: 22 }}>
+            <span className="pill pill-sol">
+              <span className="pill-tag">x402</span>SETTLING
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div className="fuse-slot">
+        <AnimatePresence>
+          {phase === 'thinking' && !paused && (
+            <motion.div key="fuse" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.1 } }}>
+              <Fuse left={fuse} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      <div className="status-slot">
         <AnimatePresence mode="wait">
           {paused ? (
             <motion.div key="paused" className="pill pill-ink" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }}>PAUSED</motion.div>
-          ) : phase === 'thinking' ? (
-            <motion.div key="fuse" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><Fuse left={fuse} /></motion.div>
-          ) : phase === 'paying' ? (
-            <motion.div key="pay" className="pill pill-sol" initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 18 }}>
-              <span className="pill-tag">x402</span>SETTLING ON SOLANA
+          ) : going > 0 ? (
+            <motion.div
+              key={`going-${going}`}
+              className={`going${going === 2 ? ' is-twice' : ''}`}
+              initial={{ scale: 1.8, opacity: 0, rotate: going === 1 ? -8 : 6 }}
+              animate={{ scale: 1, opacity: 1, rotate: going === 1 ? -4 : 3 }}
+              exit={{ opacity: 0, transition: { duration: 0.08 } }}
+              transition={{ type: 'spring', stiffness: 700, damping: 18 }}
+            >
+              GOING {going === 1 ? 'ONCE' : 'TWICE'}
             </motion.div>
+
           ) : phase === 'unsold' ? (
-            <motion.div key="nosale" className="pill pill-grey" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ delay: 0.4 }}>NO SALE</motion.div>
+            <motion.div key="nosale" className="pill pill-grey" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} transition={{ delay: 0.1 }}>NO SALE</motion.div>
           ) : !live && empty ? (
             <motion.div key="wait" className="waiting" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>WAITING FOR AGENTS</motion.div>
           ) : null}
@@ -174,17 +260,17 @@ function Podium({ lot, phase, winnerAt, price, fuse, paused, empty }: { lot: Lot
       </div>
 
       <AnimatePresence>
-        {phase === 'sold' && (
+        {hammer && lot && (
           <motion.div
-            key={`stamp-${lot?.id}`}
+            key={`stamp-${lot.id}`}
             className="stamp"
             initial={{ scale: 2.4, rotate: -16, opacity: 0 }}
             animate={{ scale: 1, rotate: -7, opacity: 1 }}
-            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
-            transition={{ type: 'spring', stiffness: 520, damping: 20 }}
+            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.15 } }}
+            transition={{ type: 'spring', stiffness: 620, damping: 20 }}
           >
             <span className="stamp-word">SOLD</span>
-            <span className="stamp-price">{usd(price || 0)}</span>
+            <span className="stamp-price">{usd(soldPrice || 0)}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -192,32 +278,55 @@ function Podium({ lot, phase, winnerAt, price, fuse, paused, empty }: { lot: Lot
   );
 }
 
-function Coins({ from }: { from: { x: number; y: number } }) {
-  const to = { x: CX - 16, y: BLOCK_TOP + 40 };
-  const peak = Math.min(from.y, to.y) - 160;
+/** Each raise tosses a coin from the raiser up into the ? block. */
+function Toss({ from }: { from: { x: number; y: number } }) {
+  const to = { x: CX - 16, y: BLOCK_TOP + 96 };
+  const peak = Math.min(from.y, to.y) - 90;
   return (
-    <div className="coins" aria-hidden>
-      {Array.from({ length: 6 }, (_, i) => (
-        <motion.div
-          key={i}
-          className="coin"
-          initial={{ x: from.x - 16, y: from.y, opacity: 0 }}
-          animate={{ x: [from.x - 16, (from.x + to.x) / 2 - 16, to.x], y: [from.y, peak, to.y], opacity: [1, 1, 0] }}
-          transition={{
-            duration: 0.75,
-            delay: 0.25 + i * 0.16,
-            repeat: Infinity,
-            repeatDelay: 0.2,
-            times: [0, 0.5, 1],
-            x: { duration: 0.75, delay: 0.25 + i * 0.16, repeat: Infinity, repeatDelay: 0.2, ease: 'linear' },
-            y: { duration: 0.75, delay: 0.25 + i * 0.16, repeat: Infinity, repeatDelay: 0.2, times: [0, 0.5, 1], ease: ['easeOut', 'easeIn'] },
-            opacity: { duration: 0.75, delay: 0.25 + i * 0.16, repeat: Infinity, repeatDelay: 0.2, times: [0, 0.85, 1] },
-          }}
-        >
-          <Coin size={32} />
-        </motion.div>
-      ))}
-    </div>
+    <motion.div
+      className="coin"
+      initial={{ x: from.x - 16, y: from.y, opacity: 1 }}
+      animate={{ x: [from.x - 16, (from.x - 16 + to.x) / 2, to.x], y: [from.y, peak, to.y], opacity: [1, 1, 0], scaleX: [1, -1, 1] }}
+      transition={{
+        duration: 0.5,
+        x: { duration: 0.5, ease: 'linear' },
+        y: { duration: 0.5, times: [0, 0.5, 1], ease: ['easeOut', 'easeIn'] },
+        opacity: { duration: 0.5, times: [0, 0.85, 1] },
+        scaleX: { duration: 0.5, ease: 'linear' },
+      }}
+      aria-hidden
+    >
+      <Coin size={32} />
+    </motion.div>
+  );
+}
+
+/** A beam from the ? block down to the guest this lot was picked for. */
+function Spotlight({ at }: { at: Slot }) {
+  const top = BLOCK_TOP + 128;
+  const foot = at.y + 6;
+  const pts = `${CX - 40},${top} ${CX + 40},${top} ${at.x + 96},${foot} ${at.x - 96},${foot}`;
+  return (
+    <motion.svg
+      className="spot"
+      width={W}
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.2 } }}
+      transition={{ duration: 0.25 }}
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id="spot-g" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff1a8" stopOpacity="0.2" />
+          <stop offset="1" stopColor="#fff1a8" stopOpacity="0.62" />
+        </linearGradient>
+      </defs>
+      <polygon points={pts} fill="url(#spot-g)" />
+      <rect x={at.x - 96} y={foot - 8} width={192} height={10} fill="#fff1a8" opacity={0.7} />
+    </motion.svg>
   );
 }
 
@@ -234,7 +343,7 @@ function Reason({ at, text }: { at: Slot; text: string }) {
       initial={{ opacity: 0, y: 16, scale: 0.8 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ delay: 1.1, type: 'spring', stiffness: 420, damping: 22 }}
+      transition={{ delay: 0.4, type: 'spring', stiffness: 460, damping: 22 }}
     >
       <div className="reason-box">{text}</div>
       <Px rows={TAIL} colors={{ k: '#14121f', b: '#fcfcfc' }} px={4} className="reason-tail" style={{ left: half + (at.x - cx) - 12 }} />
@@ -242,49 +351,68 @@ function Reason({ at, text }: { at: Slot; text: string }) {
   );
 }
 
-const PHASES_WITH_BIDS: Phase[] = ['reveal', 'paying', 'sold'];
+const WAR: Phase[] = ['reveal', 'paying', 'sold'];
 
 export default function Stage() {
   const { state, online } = useAuction();
   const scale = useFit();
   useHostKeys(state);
+  useStageSound(state);
   const phase: Phase = state?.phase ?? 'lobby';
   const fuse = usePhaseLeft(state, phase === 'thinking');
+  const going = useGoing(state);
   const agents = state?.agents ?? [];
   const layout = useMemo(() => layoutCrowd(agents), [agents]);
+  const lot = state?.lot ?? null;
 
   const winner = state?.winner ?? null;
   const winnerSlot = winner ? layout.slots.get(winner.agentId) ?? null : null;
   const winnerBid = winner ? state?.bids.find((b) => b.agentId === winner.agentId) : undefined;
+  const forAgent = lot?.forAgentId ? agents.find((a) => a.id === lot.forAgentId) : undefined;
+  const spotSlot = forAgent && (phase === 'intro' || phase === 'thinking' || phase === 'reveal') ? layout.slots.get(forAgent.id) ?? null : null;
 
-  const bids = useMemo<CrowdBids>(() => {
-    const kind = new Map<string, BubbleKind>();
-    const amount = new Map<string, number>();
-    const delay = new Map<string, number>();
-    let topId: string | null = null;
-    if (!state) return { kind, amount, delay, topId };
+  // Raises from agents who already left are dropped here, so nothing below renders a missing agent.
+  const ladder = useMemo<Raise[]>(() => {
+    if (!state || !WAR.includes(state.phase)) return [];
     const present = new Set(state.agents.map((a) => a.id));
-    if (state.phase === 'thinking') for (const a of state.agents) kind.set(a.id, 'think');
-    if (PHASES_WITH_BIDS.includes(state.phase)) {
-      const valid = state.bids.filter((b) => present.has(b.agentId));
-      // Ascending, so the top bid resolves last. On a tie the earlier bid wins, as on the server.
-      const order = new Map(state.bids.map((b, i) => [b, i]));
-      const ranked = [...valid].sort((a, b) => (a.amount ?? -1) - (b.amount ?? -1) || order.get(b)! - order.get(a)!);
-      const best = ranked.filter((b) => b.amount !== null).at(-1);
-      topId = state.winner?.agentId ?? best?.agentId ?? null;
-      ranked.forEach((b, i) => {
-        if (state.phase !== 'reveal' && b.agentId !== topId) return;
-        if (state.phase === 'sold') return; // the reason bubble takes over
-        kind.set(b.agentId, b.amount === null ? 'pass' : 'bid');
-        amount.set(b.agentId, typeof b.amount === 'number' && Number.isFinite(b.amount) ? b.amount : 0);
-        delay.set(b.agentId, state.phase === 'reveal' ? 200 + i * 120 : 0);
-      });
-    }
-    return { kind, amount, delay, topId };
+    return (state.ladder ?? []).filter((r) => present.has(r.agentId));
   }, [state]);
 
-  const crownId = phase === 'reveal' || phase === 'paying' || phase === 'sold' ? bids.topId : null;
-  const winnerHead = winnerSlot ? { x: winnerSlot.x, y: winnerSlot.y - winnerSlot.size * 1.5 } : null;
+  const view = useMemo<CrowdView>(() => {
+    const v: CrowdView = { bubble: new Map<string, BubbleKind>(), amount: new Map(), manual: new Set(), hop: new Map(), mark: new Map<string, Mark>(), flash: new Map<string, Flash>(), crownId: null, spotId: forAgent?.id ?? null, jumpId: null };
+    if (!state) return v;
+    const present = new Set(state.agents.map((a) => a.id));
+    if (state.phase === 'thinking') for (const a of state.agents) v.bubble.set(a.id, 'think');
+    if (!WAR.includes(state.phase)) return v;
+    const top = state.winner && present.has(state.winner.agentId) ? state.winner.agentId : ladder.at(-1)?.agentId ?? null;
+    v.crownId = top;
+    if (state.phase === 'paying') v.jumpId = top;
+    for (const r of ladder) v.hop.set(r.agentId, r.at);
+    const last = ladder.at(-1);
+    if (top && state.phase !== 'sold') {
+      v.bubble.set(top, 'bid');
+      v.amount.set(top, state.winner?.agentId === top ? state.winner.amount : last?.amount ?? 0);
+      if (last?.agentId === top && last.manual) v.manual.add(top);
+    }
+    let passIndex = 0;
+    for (const b of state.bids) {
+      if (!present.has(b.agentId) || b.agentId === top) continue;
+      if (b.state === 'out') {
+        v.mark.set(b.agentId, 'out');
+        if (state.phase === 'reveal') v.bubble.set(b.agentId, 'out');
+      } else if (b.state === 'pass') {
+        v.mark.set(b.agentId, 'pass');
+        if (state.phase === 'reveal' && b.reason) {
+          v.flash.set(b.agentId, { key: `${state.lot?.id}:${b.agentId}`, text: b.reason, delay: 150 + passIndex * 220, lift: passIndex % 2 ? 58 : 0 });
+          passIndex++;
+        }
+      }
+    }
+    return v;
+  }, [state, ladder, forAgent?.id]);
+
+  const tosses = phase === 'reveal' ? ladder.slice(-3) : [];
+  const head = (s: Slot) => ({ x: s.x, y: s.y - (s.size * 13) / 12 - 20 });
 
   return (
     <MotionConfig reducedMotion="user">
@@ -292,23 +420,38 @@ export default function Stage() {
         <div className="stage" style={{ transform: `translate(-50%, -50%) scale(${scale})` }}>
           <Sky />
           <Hud state={state} online={online} />
+          <div className="corner">
+            <InfoButton enterUrl={state?.enterUrl} />
+            <SoundButton withMusic />
+          </div>
           <JoinSign url={state?.joinUrl ?? ''} enterUrl={state?.enterUrl} />
           <Leaders agents={agents} />
+          <AnimatePresence>{spotSlot && <Spotlight key={`spot-${lot?.id}`} at={spotSlot} />}</AnimatePresence>
           <Podium
-            lot={state?.lot ?? null}
+            lot={lot}
             phase={phase}
-            winnerAt={winnerSlot ? { x: winnerSlot.x, y: winnerSlot.y - winnerSlot.size * 1.6 } : null}
-            price={winner?.amount ?? 0}
+            winnerAt={winnerSlot ? head(winnerSlot) : null}
+            soldPrice={winner?.amount ?? state?.price ?? 0}
+            price={state?.price ?? 0}
+            raises={ladder.length}
+            going={going}
+            forName={forAgent?.name}
             fuse={fuse}
             paused={!!state?.paused}
             empty={agents.length === 0}
           />
+          {(phase === 'reveal' || phase === 'paying') && <Ladder ladder={ladder} agents={agents} />}
           <div className="ground" style={{ top: GROUND }} aria-hidden />
-          <Crowd agents={agents} layout={layout} bids={bids} crownId={crownId} jumpId={phase === 'paying' ? winner?.agentId ?? null : null} dimOthers={false} />
+          <Crowd agents={agents} layout={layout} view={view} />
           <Pipes />
-          {phase === 'paying' && winnerHead && <Coins key={state?.lot?.id} from={winnerHead} />}
+          <div className="coins">
+            {tosses.map((r) => {
+              const s = layout.slots.get(r.agentId);
+              return s ? <Toss key={`${lot?.id}-${r.at}-${r.agentId}`} from={{ x: s.x, y: s.y - (s.size * 13) / 12 - 100 }} /> : null;
+            })}
+          </div>
           <AnimatePresence>
-            {phase === 'sold' && winnerSlot && winnerBid?.reason && <Reason key={state?.lot?.id ?? 'r'} at={winnerSlot} text={winnerBid.reason} />}
+            {phase === 'sold' && winnerSlot && winnerBid?.reason && <Reason key={lot?.id ?? 'r'} at={winnerSlot} text={winnerBid.reason} />}
           </AnimatePresence>
           <Ticker payments={state?.payments ?? []} agents={agents} />
         </div>

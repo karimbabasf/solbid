@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { QRCodeSVG } from 'qrcode.react';
-import type { AgentPublic, AuctionState, Payment } from '@shared/types';
+import type { AgentPublic, AuctionState, Payment, Raise } from '@shared/types';
 import { AgentSprite, Coin, shortSig, usd } from '../kit/sprites';
-import { Check, Cross, Spinner } from './art';
+import { Check, Cross, Crown, Spinner } from './art';
 
 const pad = (n: number) => String(Math.max(0, Math.floor(n || 0))).padStart(2, '0');
 const safe = (n: unknown) => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
@@ -69,10 +69,11 @@ export function JoinSign({ url, enterUrl }: { url: string; enterUrl?: string }) 
   );
 }
 
+/** Wins first; on a tie, whoever spent less ranks higher. */
 export function Leaders({ agents }: { agents: AgentPublic[] }) {
   const top = agents
     .filter((a) => safe(a.wins) > 0)
-    .sort((a, b) => safe(b.wins) - safe(a.wins) || safe(b.spent) - safe(a.spent))
+    .sort((a, b) => safe(b.wins) - safe(a.wins) || safe(a.spent) - safe(b.spent))
     .slice(0, 5);
   return (
     <div className="panel leaders">
@@ -82,14 +83,56 @@ export function Leaders({ agents }: { agents: AgentPublic[] }) {
         <span>SPENT</span>
       </div>
       {top.length === 0 && <div className="leaders-empty">NO WINNERS YET</div>}
-      {top.map((a) => (
-        <motion.div layout key={a.id} className="leader" transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
-          <AgentSprite color={safe(a.color)} sprite={safe(a.sprite)} size={36} />
-          <span className="leader-name">{a.name}</span>
+      {top.map((a, i) => (
+        <motion.div layout key={a.id} className={`leader${i === 0 ? ' is-first' : ''}`} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
+          <span className="leader-face">
+            {i === 0 && (
+              <span className="leader-crown">
+                <Crown px={3} />
+              </span>
+            )}
+            <AgentSprite color={safe(a.color)} sprite={safe(a.sprite)} size={i === 0 ? 52 : 36} />
+          </span>
+          <span className="leader-name">
+            <span className="leader-nm">{a.name}</span>
+            {a.house && <span className="leader-bot">BOT</span>}
+          </span>
           <span className="leader-wins">{safe(a.wins)}</span>
           <span className="leader-spent">{usd(safe(a.spent))}</span>
         </motion.div>
       ))}
+    </div>
+  );
+}
+
+/** The last few raises of the war, newest on top so the price reads as climbing. */
+export function Ladder({ ladder, agents }: { ladder: Raise[]; agents: AgentPublic[] }) {
+  const byId = new Map(agents.map((a) => [a.id, a]));
+  const rows = ladder
+    .map((r, i) => ({ r, i, a: byId.get(r.agentId) }))
+    .filter((x): x is { r: Raise; i: number; a: AgentPublic } => !!x.a)
+    .slice(-5)
+    .reverse();
+  return (
+    <div className="ladder" aria-live="polite">
+      <AnimatePresence initial={false} mode="popLayout">
+        {rows.map(({ r, i, a }, n) => (
+          <motion.div
+            key={`${r.at}-${i}`}
+            layout
+            className={`rung${n === 0 ? ' is-high' : ''}`}
+            initial={{ y: -24, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1 - n * 0.14, scale: 1 }}
+            exit={{ opacity: 0, transition: { duration: 0.12 } }}
+            transition={{ type: 'spring', stiffness: 700, damping: 30 }}
+          >
+            <AgentSprite color={safe(a.color)} sprite={safe(a.sprite)} size={28} />
+            <span className="rung-name">{a.name}</span>
+            {r.manual && <span className="human">HUMAN</span>}
+            <span className="rung-amt">{usd(safe(r.amount))}</span>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
