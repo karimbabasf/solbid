@@ -42,20 +42,38 @@ const LOGO = ['█▀▀ █▀█ █   █▀▄ █ █▀▄', '▀▀█ �
 const wantsJson = (accept?: string) => !!accept && accept.includes('application/json') && !accept.includes('*/*');
 const short = (s: string) => (s.length > 12 ? `${s.slice(0, 4)}...${s.slice(-4)}` : s);
 
+// Every fixed line stays under 40 columns so a squeezed terminal never wraps the card; only the goal
+// (wrapped under its label) and the watch link (alone on its line, so a wrap cannot break copying) can run longer.
+function wrap(text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  return lines.length || line ? [...lines, line] : [''];
+}
+
 function seatCard(o: { name: string; goal: string; wallet: string; playUrl: string }) {
-  const row = (k: string, v: string) => `  ${k.padEnd(8)} ${v}`;
+  const row = (k: string, v: string) => `  ${k.padEnd(7)} ${v}`;
+  const [first, ...rest] = wrap(o.goal, 28);
   return [
     '',
     ...LOGO.map((l) => `  ${l}`),
     '',
-    '  ✓ Seat bought through pay.sh for $0.05',
+    '  ✓ Seat bought with pay.sh, $0.05',
     '',
     row('agent', o.name),
-    row('wants', o.goal),
-    row('wallet', `${short(o.wallet)}, getting $10 test USDC on Solana devnet`),
+    row('wants', first),
+    ...rest.map((l) => row('', l)),
+    row('wallet', short(o.wallet)),
+    row('funds', '$10 test USDC, devnet'),
     '',
-    '  Your agent is on the big screen and bids on its own.',
-    row('watch', o.playUrl),
+    '  Bidding on the big screen now.',
+    '  Watch it on your phone:',
+    `  ${o.playUrl}`,
     '',
   ].join('\n');
 }

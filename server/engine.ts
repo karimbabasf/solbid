@@ -192,6 +192,13 @@ function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
+// Cut long text at a word boundary so a goal never ends mid-word.
+const clip = (t: string, n: number) => {
+  if (t.length <= n) return t;
+  const cut = t.slice(0, n);
+  const sp = cut.lastIndexOf(' ');
+  return sp > n * 0.6 ? cut.slice(0, sp) : cut;
+};
 const pick = <T,>(xs: T[]) => xs[Math.floor(Math.random() * xs.length)];
 
 // ---------- payments feed ----------
@@ -238,7 +245,7 @@ async function fund(a: Agent, refill = false) {
 function createAgent(o: { name?: string; goal: GoalId; text?: string; color?: number; sprite?: number; house?: boolean; boldness?: number }): Agent {
   const w = rail.newWallet();
   const id = `ag-${Math.random().toString(36).slice(2, 8)}`;
-  const text = (o.text ?? '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 40);
+  const text = clip((o.text ?? '').replace(/[\u0000-\u001f<>]/g, '').trim(), 40);
   const goal: GoalId = GOALS.includes(o.goal) ? o.goal : 'custom';
   const a: Agent = {
     id,
