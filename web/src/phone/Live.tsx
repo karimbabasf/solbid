@@ -39,7 +39,7 @@ export default function Live({ agentId, state, me, online, rise }: Props) {
     setParty({ lotId: lot.id, icon: lot.icon, amount: state.winner.amount });
   }, [won, lot, state?.winner]);
 
-  const enter = (i: number) => (rise ? { initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { delay: 0.5 + i * 0.08, type: 'spring' as const, stiffness: 320, damping: 26 } } : {});
+  const enter = (i: number) => (rise ? { initial: { y: 24 }, animate: { y: 0 }, transition: { delay: 0.5 + i * 0.08, type: 'spring' as const, stiffness: 320, damping: 26 } } : {});
 
   return (
     <div className="ph-screen lv">
